@@ -7,4 +7,4 @@ L'idea nasce dallo studio della Computer Vision (da cui prende anche il nome, an
 L'aggiunta della parte di intelligenza artificiale risiede ovviamente nella creazione di un sistema automatico che sia in grado di giocare (e, quanto meno, _NON perdere_) contro l'utente. Il nome TrisVC signfica infatti letteralmente Tris Versus Computer.
 
 ## Strumenti usati
-Python + PyCharms
+Python + PyCharms + OpenCV (pip install opencv-python)
