@@ -7,6 +7,7 @@ UB = 0
 Appr = 0.01
 bgChecker = None
 centerChecker = [0, 0, 0, 0]
+checker = [[0, 0, 0], [0, 0, 0], [0, 0, 0]] # 0 = None; 1 = X; 2 = O
 
 
 def minn(x):
@@ -23,6 +24,7 @@ def approxx(x):
 def drawWhatISeeWindow():
     cv2.namedWindow("What I see")
     global bgChecker
+    global checker
     bgChecker = np.zeros([512, 512, 1], np.uint8)
     bgChecker.fill(255)
 
@@ -30,6 +32,12 @@ def drawWhatISeeWindow():
     cv2.rectangle(bgChecker, (328, 64), (331, 470), (0, 0, 0), -1)
     cv2.rectangle(bgChecker, (41, 193), (467, 196), (0, 0, 0), -1)
     cv2.rectangle(bgChecker, (41, 354), (467, 357), (0, 0, 0), -1)
+    for row in checker:
+        for col in checker:
+            if checker[row][col] == 1:
+                #Draw X
+            elif checker[row][col] == 2:
+                #Draw Y
     cv2.imshow("What I see", bgChecker)
 
 def addCheckerToWindow(what, pos):
@@ -50,6 +58,7 @@ def addCheckerToWindow(what, pos):
 
 def main():
     global centerChecker
+    global checker
     cap = cv2.VideoCapture(0)
 
     bars = cv2.namedWindow("Sliders")
@@ -121,6 +130,7 @@ def main():
                 #rect = cv2.boundingRect(contour)
                 x, y, w, h = rect
                 cv2.putText(frame, "X " + str(len(approx)), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                # Rileva posizione rispetto a centerChecker e modifica checker (la variabile globale)
             '''
             elif 4 <= len(approx) <= 40: # Trovare Checker O
                 #rect = cv2.boundingRect(contour)
@@ -135,6 +145,8 @@ def main():
             circles = np.uint16(np.around(circles))
             for i in circles[0, :]:
                 cv2.circle(frame, (i[0], i[1]), i[2], (0, 255, 0), 2)
+                # Controlla se è dentro l'area di gioco stile if x < a < (x+w) and y < b < (y+h) and x < (a+c) < (x+w) and y < (b+d) < (y+h):
+                # Rileva posizione rispetto a centerChecker e modifica checker (la variabile globale)
 
         cv2.imshow("Frame", frame)
         cv2.imshow("Mask", mask)
