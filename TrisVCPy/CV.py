@@ -34,9 +34,8 @@ def drawWhatISeeWindow():
     cv2.rectangle(bgChecker, (41, 354), (467, 357), (0, 0, 0), -1)
     for row in checker:
         for col in checker:
-            if checker[row][col] != 0: # Se la casella non è vuota
-                # Disegna X se checker[row][col] == 1. Oppure disegna O se checker[row][col] == 2
-                addCheckerToWindow(checker[row][col], (row, col))
+            # Disegna X se checker[row][col] == 1. Oppure disegna O se checker[row][col] == 2
+            addCheckerToWindow(checker[row][col], (row, col))
     cv2.imshow("What I see", bgChecker)
 
 def drawX(pos):
@@ -45,25 +44,17 @@ def drawX(pos):
 
 def drawO(pos):
     global bgChecker
-    center_coordinates = (pos[0], pos[1])
-    radius = 20
-    thickness = 2
-    image = cv2.circle(bgChecker, center_coordinates, radius, (0, 0, 0), thickness)
+    cv2.circle(bgChecker, (pos[0], pos[1]), 10, (0, 0, 0), 3) # Raggio = 10; Spessore = 3
     
 def addCheckerToWindow(what, pos):
-    global bgChecker
+    posMatrix = [[(100, 200), (300, 400), (500, 600)],
+                 [(700, 800), (900, 1000), (1100, 1200)],
+                 [(1300, 1400), (150, 1600), (1700, 1800)]]
 
-    if pos[0] == 0 and pos[1] == 0: drawX((169, 64)) if what == 1 else drawO((169, 64)) # Up, Left
-    elif pos[0] == 0 and pos[1] == 1: drawX() if what == 1 else drawO() # Up, Mid
-    elif pos[0] == 0 and pos[1] == 2: drawX() if what == 1 else drawO() # Up, Right
-    
-    elif pos[0] == 1 and pos[1] == 0: drawX() if what == 1 else drawO() # Mid, Left
-    elif pos[0] == 1 and pos[1] == 1: drawX() if what == 1 else drawO() # Mid, Mid
-    elif pos[0] == 1 and pos[1] == 2: drawX() if what == 1 else drawO() # Mid, Right
-    
-    elif pos[0] == 2 and pos[1] == 0: drawX() if what == 1 else drawO() # Down, Left
-    elif pos[0] == 2 and pos[1] == 1: drawX() if what == 1 else drawO() # Down, Mid
-    elif pos[0] == 2 and pos[1] == 2: drawX() if what == 1 else drawO() # Down, Right        
+    if what == 1: # Disegna X
+        drawX(posMatrix[row][col])
+    elif what == 2: # Disegna O
+        drawO(posMatrix[row][col])
 
 #TODO Implementa checkAndSub
 def checkAndSub(listC):
@@ -174,7 +165,7 @@ def main():
             if item[1] == 1:
                 cv2.drawContours(frame, [item], 0, (51, 252, 255), 3) # Disegna le X in giallo
             elif item[1] == 2:
-                cv2.circle(frame, (i[0], i[1]), i[2], (0, 0, 255), 2) # Disegna i O in blu
+                cv2.circle(frame, (i[0], i[1]), i[2], (0, 0, 255), 3) # Disegna i O in blu
 
 
         cv2.imshow("Frame", frame)
