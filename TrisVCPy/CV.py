@@ -1,15 +1,51 @@
 import cv2
 import numpy as np
 
+class Game:
+    tables = None # Matrice di tabelle
+    paintedChecker = None # Finestra per mostrare lo stato attuale del gioco
+    def __init__(self):
+        self.tables = [[Table() for _ in range(3)] for _ in range(3)]
+    def getTable(self, row, col):
+        return self.tables[row][col]
+    def checkWinGame(self): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
+        tmp = [[0] * 3] * 3
+        for row in range(3):
+            for col in range(3):
+                tmp[row][col] = Table.checkWinTable(self.tables[row][col].table)
+        #Check vittoria sulla matrice d'appoggio tmp
+        return Table.checkWinTable(tmp)
+
+class Table:
+    table = None
+    def __init__(self):
+        self.table = [[0] * 3] * 3 # 0 = Casella vuota; 1 = X; 2 = O
+    def checkWinTable(table): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
+        # Per righe
+        if table[0][0] == table[0][1] and table[0][0] == table[0][2] and table[0][0] != 0: return table[0][0]
+        if table[1][0] == table[1][1] and table[1][0] == table[1][2] and table[1][0] != 0: return table[1][0]
+        if table[2][0] == table[2][1] and table[2][0] == table[2][2] and table[2][0] != 0: return table[2][0]
+        # Per colonne
+        if table[0][0] == table[1][0] and table[0][0] == table[2][0] and table[0][0] != 0: return table[0][0]
+        if table[0][1] == table[1][1] and table[0][1] == table[2][1] and table[0][1] != 0: return table[0][1]
+        if table[0][2] == table[1][2] and table[0][2] == table[2][2] and table[0][2] != 0: return table[0][2]
+        # Diagonali
+        if table[0][0] == table[1][1] and table[0][0] == table[2][2] and table[0][0] != 0: return table[0][0]
+        if table[0][2] == table[1][1] and table[0][2] == table[2][0] and table[0][2] != 0: return table[0][2]
+        # No Wins
+        return 0
+        
 #Global
 LB = 0
 UB = 0
 Appr = 0.01
-bgChecker = None
 centerChecker = [0, 0, 0, 0]
-checker = [[0, 0, 0], [0, 0, 0], [0, 0, 0]] # 0 = None; 1 = X; 2 = O
 
+area_h = 256 # Altezza di una sola casella della macro tabella
+area_w = 256 # Larghezza di una sola casella della macro tabella
+offset = 20 # Spiazzamento rispetto ai bordi della finestra "What I See"
 
+# Funzioni di appoggio per finestra "Sliders"
 def minn(x):
     global LB
     LB = cv2.getTrackbarPos("LivelloMin", "Sliders")
@@ -20,41 +56,61 @@ def approxx(x):
     global Appr
     Appr = cv2.getTrackbarPos("Approx", "Sliders")/1000 + 0.008
 
-
-def drawWhatISeeWindow():
-    cv2.namedWindow("What I see")
-    global bgChecker
-    global checker
-    bgChecker = np.zeros([512, 512, 1], np.uint8)
+# Finestra "What I See"
+def init_bgWhatISee():
+    happ = area_h * 3
+    wapp = area_w * 3
+    bgChecker = np.zeros([offset*2+happ, offset*2+wapp, 3], np.uint8)
     bgChecker.fill(255)
 
-    cv2.rectangle(bgChecker, (169, 64), (172, 470), (0, 0, 0), -1)
-    cv2.rectangle(bgChecker, (328, 64), (331, 470), (0, 0, 0), -1)
-    cv2.rectangle(bgChecker, (41, 193), (467, 196), (0, 0, 0), -1)
-    cv2.rectangle(bgChecker, (41, 354), (467, 357), (0, 0, 0), -1)
-    for row in checker:
-        for col in checker:
-            # Disegna X se checker[row][col] == 1. Oppure disegna O se checker[row][col] == 2
-            addCheckerToWindow(checker[row][col], (row, col))
-    cv2.imshow("What I see", bgChecker)
-
-def drawX(pos):
-    global bgChecker
+    cv2.rectangle(bgChecker, (area_w+offset, offset), (area_w+offset, happ+offset), (43, 240, 96), 2)
+    cv2.rectangle(bgChecker, (area_w*2+offset, offset), (area_w*2+offset, happ+offset), (43, 240, 96), 2)
+    cv2.rectangle(bgChecker, (offset, area_h+offset), (wapp+offset, area_h+offset), (43, 240, 96), 2)
+    cv2.rectangle(bgChecker, (offset, area_h*2+offset), (wapp+offset, area_h*2+offset), (43, 240, 96), 2)
+    # Disegna i sotto-giochi
+    width_subarea = int((area_w-2*offset)/3)
+    heigth_subarea = int((area_h-2*offset)/3)
+    for vertical in range(3):
+        for horizontal in range(3):
+            offsetX = area_h*horizontal+offset
+            offsetY = area_w*vertical+offset
+            cv2.rectangle(bgChecker, (offsetX+width_subarea+offset, offsetY+offset), (offsetX+width_subarea+offset, offsetY+(heigth_subarea*3)+offset), (0, 0, 0), -1)
+            cv2.rectangle(bgChecker, (offsetX+width_subarea*2+offset, offsetY+offset), (offsetX+width_subarea*2+offset, offsetY+(heigth_subarea*3)+offset), (0, 0, 0), -1)
+            cv2.rectangle(bgChecker, (offsetX+offset, offsetY+width_subarea+offset), (offsetX+(width_subarea*3)+offset, offsetY+width_subarea+offset), (0, 0, 0), -1)
+            cv2.rectangle(bgChecker, (offsetX+offset, offsetY+heigth_subarea*2+offset), (offsetX+(width_subarea*3)+offset, offsetY+heigth_subarea*2+offset), (0, 0, 0), -1)
+    return bgChecker
+   
+def drawX(bg, pos):
     # Disegna 2 linee
 
-def drawO(pos):
-    global bgChecker
-    cv2.circle(bgChecker, (pos[0], pos[1]), 10, (0, 0, 0), 3) # Raggio = 10; Spessore = 3
-    
-def addCheckerToWindow(what, pos):
+def drawO(bg, pos):
+    radius = int((((area_w-2*offset)/3)/2) * (0.8)) # Raggio = dimensione subarea/2 con un rapporto dell'80%
+    cv2.circle(bg, (pos[0], pos[1]), radius, (255, 0, 0), 1) # Spessore = 1
+            
+def drawTableOnbgWhatISee(bg, table, offsetX, offsetY):
+    #TODO: rendere funzionante drawTableOnbgWhatISee
     posMatrix = [[(100, 200), (300, 400), (500, 600)],
                  [(700, 800), (900, 1000), (1100, 1200)],
                  [(1300, 1400), (150, 1600), (1700, 1800)]]
-
+    pos = (posMatrix[row][col][0] + offsetX, posMatrix[row][col][1] + offsetY)
     if what == 1: # Disegna X
-        drawX(posMatrix[row][col])
+        drawX(bg, pos)
     elif what == 2: # Disegna O
-        drawO(posMatrix[row][col])
+        drawO(bg, pos)
+    
+# Metodi "pubblici"
+def showWhatISeeWindow(game):
+    cv2.namedWindow("What I see")
+    game.paintedChecker = init_bgWhatISee()
+    cv2.imshow("What I see", game.paintedChecker)
+
+def updateWhatISeeWindow(game):    
+    for gameRow in range(3):
+        for gameCol in range(3):
+            # Disegna X se checker[gameRow][gameCol] == 1. Oppure disegna O se checker[gameRow][gameCol] == 2
+            drawTableOnbgWhatISee(game.paintedChecker,
+                                  game.tables[gameRow][gameCol],
+                                  gameRow * 512, gameCol * 512)
 
 #TODO Implementa checkAndSub
 def checkAndSub(listC):
@@ -62,13 +118,18 @@ def checkAndSub(listC):
 
 def main():
     global centerChecker
-    global checker
+    game = Game()
     cap = cv2.VideoCapture(0)
 
     bars = cv2.namedWindow("Sliders")
     cv2.createTrackbar("LivelloMin", "Sliders", 100, 255, minn) #38
     cv2.createTrackbar("LivelloMax", "Sliders", 255, 255, maxx) #108
     cv2.createTrackbar("Approx", "Sliders", 8, 100, approxx) #108
+
+    showWhatISeeWindow(game)
+    updateWhatISeeWindow(game)
+    
+    return
 
     while True:
         _, frame = cap.read()
