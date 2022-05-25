@@ -7,9 +7,9 @@ class Game:
     def __init__(self):
         self.tables = [[Table() for _ in range(3)] for _ in range(3)]
     def getTable(self, row, col):
-        return self.tables[row][col]
+        return self.tables[row][col].table
     def checkWinGame(self): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
-        tmp = [[0] * 3] * 3
+        tmp = [[0] * 3 for _ in range(3)]
         for row in range(3):
             for col in range(3):
                 tmp[row][col] = Table.checkWinTable(self.tables[row][col].table)
@@ -19,7 +19,7 @@ class Game:
 class Table:
     table = None
     def __init__(self):
-        self.table = [[0] * 3] * 3 # 0 = Casella vuota; 1 = X; 2 = O
+        self.table = [[0] * 3 for _ in range(3)] # 0 = Casella vuota; 1 = X; 2 = O
     def checkWinTable(table): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
         # Per righe
         if table[0][0] == table[0][1] and table[0][0] == table[0][2] and table[0][0] != 0: return table[0][0]
@@ -56,6 +56,11 @@ def approxx(x):
     global Appr
     Appr = cv2.getTrackbarPos("Approx", "Sliders")/1000 + 0.008
 
+# Scansione
+def checkAndSub(correctContours):
+    #TODO
+    return None
+
 # Finestra "What I See"
 def init_bgWhatISee():
     happ = area_h * 3
@@ -80,57 +85,68 @@ def init_bgWhatISee():
             cv2.rectangle(bgChecker, (offsetX+offset, offsetY+heigth_subarea*2+offset), (offsetX+(width_subarea*3)+offset, offsetY+heigth_subarea*2+offset), (0, 0, 0), -1)
     return bgChecker
    
-def drawX(bg, pos):
+def drawX(game, pos):
     # Disegna 2 linee
+    length_of_line = ((area_w-2*offset)/3) * 0.8 # = dimensione subarea con un rapporto dell'80%
+    starting_point = int((length_of_line/2)*np.cos(np.pi/4))
+    cv2.line(game.paintedChecker, (pos[0]-starting_point, pos[1]-starting_point), (pos[0]+starting_point, pos[1]+starting_point), (0, 252, 255), thickness=2)
+    cv2.line(game.paintedChecker, (pos[0]+starting_point, pos[1]-starting_point), (pos[0]-starting_point, pos[1]+starting_point), (0, 252, 255), thickness=2)
 
-def drawO(bg, pos):
+def drawO(game, pos):
     radius = int((((area_w-2*offset)/3)/2) * (0.8)) # Raggio = dimensione subarea/2 con un rapporto dell'80%
-    cv2.circle(bg, (pos[0], pos[1]), radius, (255, 0, 0), 1) # Spessore = 1
-            
-def drawTableOnbgWhatISee(bg, table, offsetX, offsetY):
-    #TODO: rendere funzionante drawTableOnbgWhatISee
-    posMatrix = [[(100, 200), (300, 400), (500, 600)],
-                 [(700, 800), (900, 1000), (1100, 1200)],
-                 [(1300, 1400), (150, 1600), (1700, 1800)]]
-    pos = (posMatrix[row][col][0] + offsetX, posMatrix[row][col][1] + offsetY)
-    if what == 1: # Disegna X
-        drawX(bg, pos)
-    elif what == 2: # Disegna O
-        drawO(bg, pos)
+    cv2.circle(game.paintedChecker, (pos[0], pos[1]), radius, (255, 0, 0), 2) # Spessore = 1  
     
-# Metodi "pubblici"
+# Metodi pubblici ----------------------------------------------------------------------------------------------------------------
+# Grafica
 def showWhatISeeWindow(game):
     cv2.namedWindow("What I see")
     game.paintedChecker = init_bgWhatISee()
+    cv2.imshow("What I see", game.paintedChecker)
+                
+def drawTableOnbgWhatISee(game, table, offsetX, offsetY):
+    w_subarea = (area_w-2*offset)/3
+    h_subarea = (area_h-2*offset)/3
+    trait_w = int(w_subarea/6)
+    trait_h = int(h_subarea/6)
+    posMatrix = [[(trait_w, trait_h), (3*trait_w, trait_h), (5*trait_w, trait_h)],
+                 [(trait_w, 3*trait_h), (3*trait_w, 3*trait_h), (5*trait_w, 3*trait_h)],
+                 [(trait_w, 5*trait_h), (3*trait_w, 5*trait_h), (5*trait_w, 5*trait_h)]]
+    for row in range(3):
+        for col in range(3):
+            pos = (posMatrix[row][col][0] + offsetX + 3*offset, posMatrix[row][col][1] + offsetY + 3*offset)
+            what = table[row][col]
+            if what == 1: # Disegna X
+                drawX(game, pos)
+            elif what == 2: # Disegna O
+                drawO(game, pos)  
     cv2.imshow("What I see", game.paintedChecker)
 
 def updateWhatISeeWindow(game):    
     for gameRow in range(3):
         for gameCol in range(3):
             # Disegna X se checker[gameRow][gameCol] == 1. Oppure disegna O se checker[gameRow][gameCol] == 2
-            drawTableOnbgWhatISee(game.paintedChecker,
-                                  game.tables[gameRow][gameCol],
-                                  gameRow * 512, gameCol * 512)
+            drawTableOnbgWhatISee(game,
+                                  game.getTable(gameRow, gameCol),
+                                  gameCol * area_w, gameRow * area_h)
+    cv2.imshow("What I see", game.paintedChecker)
 
-#TODO Implementa checkAndSub
-def checkAndSub(listC):
-    return None
+def highlightCurrentTable(game, row, col):
+    w = int(area_w/2-offset/2)
+    h = int(area_h/2-offset/2)
+    centerW = int(area_w/2)
+    centerH = int(area_h/2)
+    for rowApp in range(3):
+        for colApp in range(3):
+            cv2.rectangle(game.paintedChecker,
+                          (centerW+offset-w+area_w*colApp, centerH+offset-h+area_h*rowApp),
+                          (centerW+offset+w+area_w*colApp, centerH+offset+h+area_h*rowApp), (255, 255, 255), 2)
+    cv2.rectangle(game.paintedChecker,
+                          (centerW+offset-w+area_w*col, centerH+offset-h+area_h*row),
+                          (centerW+offset+w+area_w*col, centerH+offset+h+area_h*row), (0, 0, 255), 2)
+    cv2.imshow("What I see", game.paintedChecker)
 
-def main():
-    global centerChecker
-    game = Game()
-    cap = cv2.VideoCapture(0)
-
-    bars = cv2.namedWindow("Sliders")
-    cv2.createTrackbar("LivelloMin", "Sliders", 100, 255, minn) #38
-    cv2.createTrackbar("LivelloMax", "Sliders", 255, 255, maxx) #108
-    cv2.createTrackbar("Approx", "Sliders", 8, 100, approxx) #108
-
-    showWhatISeeWindow(game)
-    updateWhatISeeWindow(game)
-    
-    return
-
+# CV
+def scanTable(game, row, col):
     while True:
         _, frame = cap.read()
 
@@ -229,13 +245,31 @@ def main():
                 cv2.circle(frame, (i[0], i[1]), i[2], (0, 0, 255), 3) # Disegna i O in blu
 
 
-        cv2.imshow("Frame", frame)
-        cv2.imshow("Mask", mask)
-        drawWhatISeeWindow()
+        drawTableOnbgWhatISee(game, game.getTable(row, col), col * area_w, row * area_h):
 
         key = cv2.waitKey(1)
-        if key == 27:
-            break
+        if key == 27: # Interrompi scansione con il tasto "ESC"
+            break    
+
+# Main
+def main():
+    game = Game()
+    
+    cap = cv2.VideoCapture(0)
+
+    bars = cv2.namedWindow("Sliders")
+    cv2.createTrackbar("LivelloMin", "Sliders", 100, 255, minn) #38
+    cv2.createTrackbar("LivelloMax", "Sliders", 255, 255, maxx) #108
+    cv2.createTrackbar("Approx", "Sliders", 8, 100, approxx) #108
+
+    showWhatISeeWindow(game)
+    game.getTable(0, 1)[0][0] = 1
+    game.getTable(1, 1)[0][0] = 2
+    updateWhatISeeWindow(game)
+    highlightCurrentTable(game, 1, 1)
+
+    scanTable(game, 1, 1)
+    updateWhatISeeWindow(game)    
 
     cap.release()
     cv2.destroyAllWindows()
