@@ -174,13 +174,63 @@ def highlightCurrentTableInWhatISeeWindow(game, row, col):
 # CV
 # Metodi di appoggio
 
-def adjustPositions(listOfContours): # Creazione matrice 3x3 con le posizioni corrette
+def adjustPositions(correctContoursToArrange): # Creazione matrice 3x3 con le posizioni corrette
     #TODO
+    # Centro: x_centro,y_centro - x2_centro,y2_centro
+    x_centro, y_centro, w_centro, h_centro = correctContoursToArrange["center"]
+    x2_centro = x_centro+w_centro
+    y2_centro = y_centro+h_centro
     return None
 
-def checkAndSub(correctContours): # Controllo sovrapposizioni: restituisce una lista di 9 contours
-    #TODO
-    return None
+def checkAndSub(currentContours): # Controllo sovrapposizioni: restituisce una lista di 9 contours
+    # Area di gioco rilevata: x_area,y_area - x2_area,y2_area
+    x_area, y_area, w_area, h_area = currentContours["ADG"]
+    x2_area = x_area+w_area
+    y2_area = y_area+h_area
+    # Dimensioni di una sottoarea
+    w_mid_subarea = (w_area/3)/2
+    h_mid_subarea = (h_area/3)/2
+    itemsInsidePlayarea = []
+    for item in currentContours["checkers"]:
+        if item[0] == 1: x, y, _, _ = item[1]
+        else: x, y = item[1]
+        if  x_area <= x <= x2_area and y_area <= y <= y2_area: itemsInsidePlayarea.append(item)
+    itemsInsidePlayarea.sort(key=lambda x: x[1][0])
+    print("Area di gioco:", x_area, y_area, x2_area, y2_area)
+    print("Larghezza area di gioco:", w_area, "e larghezza sottoarea:",w_mid_subarea*2)
+    #print(itemsInsidePlayarea)
+    # Rilevazione e sostituzione sovrapposizioni solo per le X
+    correctContours = []
+    analyzedOs = []
+    for item in itemsInsidePlayarea:
+        if item[0] == 1:
+            x, y, w, h = item[1]
+            center_item_x = x+w/2
+            center_item_y = y+h/2
+            x1_this_subarea = center_item_x-w_mid_subarea
+            x2_this_subarea = center_item_x+w_mid_subarea
+            y1_this_subarea = center_item_y-h_mid_subarea
+            y2_this_subarea = center_item_y+h_mid_subarea
+            # Cerca se c'è, tra gli altri contours, un O che occupa la stessa sottoarea
+            found = False
+            for item2 in itemsInsidePlayarea:
+                if item[0] == 2:
+                    x2, y2 = item[1]
+                    # Quest'O è all'interno dell'area in analisi?
+                    if  x1_this_subarea <= x2 <= x2_this_subarea and y1_this_subarea <= y2 <= y2_this_subarea:
+                        found = True
+                        analyzedOs.append(item2)
+                        correctContours.append(item2)
+            if not found: correctContours.append(item)
+        elif item[0] == 2 and item not in analyzedOs:
+            correctContours.append(item)
+            analyzedOs.append(item)
+    print(correctContours)
+    correctContoursDict = {}
+    correctContoursDict["ADG"] = currentContours["ADG"]
+    correctContoursDict["center"] = currentContours["center"]
+    correctContoursDict["checkers"] = correctContours
+    return correctContoursDict
 
 # Metodi pubblici -------------------------------------------------
 def scanTable(game, row, col, cap):
@@ -199,8 +249,8 @@ def scanTable(game, row, col, cap):
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         refRect = None
         refCentral = None
-        currentContous = {}
-        currentContous["checkers"] = []
+        currentContours = {}
+        currentContours["checkers"] = []
 
         for contour in contours:
             approx = cv2.approxPolyDP(contour, Appr * cv2.arcLength(contour, False), False)
@@ -213,42 +263,35 @@ def scanTable(game, row, col, cap):
                 cv2.drawContours(frame, [approx], 0, (43, 240, 96), 3) # Disegna il contour rilevato per l'area di gioco
 
                 cv2.putText(frame, "Area di gioco", (x, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-                currentContous["ADG"] = (approx, rect)
-                '''
-                elif 5 <= len(approx) <= 10: # Riquadro al centro
-                    #rect = cv2.boundingRect(contour)
-                    a, b, c, d = rect
-                    if "ADG" in currentContous:
-                        x, y, w, h = currentContous["ADG"][1]
-                        if x < a < (x+w) and y < b < (y+h) and x < (a+c) < (x+w) and y < (b+d) < (y+h): # Found
-                            refCentral = rect
-                            centerChecker[0] = (a, b)
-                            centerChecker[1] = (a + c, b)
-                            centerChecker[2] = (a, b + d)
-                            centerChecker[3] = (a + c, b + d)
-                            #cv2.rectangle(frame, (a, b), (a + c, b + d), (0, 255, 0), 2)
-                            cv2.putText(frame, str(len(approx)), (a, b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-                            currentContous["checkers"].append((approx, rect))
-                '''
-            elif 12 <= len(approx) <= 18: # Trovare Checker X
+                currentContours["ADG"] = rect
+            elif 5 <= len(approx) <= 10: # Riquadro al centro
+                #rect = cv2.boundingRect(contour)
+                a, b, c, d = rect
+                if "ADG" in currentContours and "center" not in currentContours:
+                    x, y, w, h = currentContours["ADG"]
+                    if x < a < (x+w) and y < b < (y+h) and x < (a+c) < (x+w) and y < (b+d) < (y+h): # Found
+                        cv2.rectangle(frame, (a, b), (a + c, b + d), (0, 255, 0), 2)
+                        cv2.putText(frame, "Centro (" + str(len(approx)) + ")", (a, b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                        currentContours["center"] = rect        
+            if 11 <= len(approx) <= 18: # Trovare Checker X
                 rect = cv2.boundingRect(contour)
                 x, y, w, h = rect
                 # Se è rilevata una X, allora PROBABILMENTE è corretta. Rimane da constatare se si trova all'interno dell'area di gioco o meno
-                if "ADG" in currentContous:
-                    x_ADG, y_ADG, w_ADG, h_ADG = currentContous["ADG"][1]
-                    if x_ADG < x < (x_ADG+w_ADG) and y_ADG < y < (y_ADG+h_ADG): # Trovata possibile X interna all'area di gioco
-                        currentContous["checkers"].append((1, approx, rect))
-                        cv2.putText(frame, "X", (int(x+w/2), int(y+h/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colorX, 2) # Disegna X in giallo
+                #if "ADG" in currentContous:
+                #x_ADG, y_ADG, w_ADG, h_ADG = currentContous["ADG"][1]
+                #if x_ADG < x < (x_ADG+w_ADG) and y_ADG < y < (y_ADG+h_ADG): # Trovata possibile X interna all'area di gioco
+                currentContours["checkers"].append((1, rect))
+                cv2.putText(frame, "X", (int(x+w/2), int(y+h/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colorX, 2) # Disegna X in giallo
 
         circles = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT, 1, 120, param1=100, param2=30, minRadius=0, maxRadius=0)
         if circles is not None: # Trovare Checker O
             circles = np.uint16(np.around(circles))
             for i in circles[0, :]:
                 # Se è rilevato un O, allora è SICURAMENTE corretto. Rimane da constatare se si trova all'interno dell'area di gioco o meno
-                if "ADG" in currentContous:
-                    x_ADG, y_ADG, w_ADG, h_ADG = currentContous["ADG"][1]
+                if "ADG" in currentContours:
+                    x_ADG, y_ADG, w_ADG, h_ADG = currentContours["ADG"]
                     if x_ADG < i[0] < (x_ADG+w_ADG) and y_ADG < i[1] < (y_ADG+h_ADG): # Trovato O interno all'area di gioco
-                        currentContous["checkers"].append((2, i, (i[0], i[1])))
+                        currentContours["checkers"].append((2, (i[0], i[1])))
                         cv2.circle(frame, (i[0], i[1]), i[2], colorO, 3) # Disegna O in blu
 
 
