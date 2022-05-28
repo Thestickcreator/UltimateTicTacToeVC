@@ -140,6 +140,10 @@ def drawTableOnbgWhatISee(game, table, offsetX, offsetY):
         for col in range(3):
             pos = (posMatrix[row][col][0] + offsetX + 2*offset, posMatrix[row][col][1] + offsetY + 2*offset)
             what = table[row][col]
+            # Ripulisci il precedente contenuto
+            cv2.rectangle(game.paintedChecker,
+                          (pos[0]-trait_w, pos[1]-trait_h), 
+                          (pos[0]+trait_w, pos[1]+trait_h), (255, 255, 255), -1)
             if what == 1: # Disegna X
                 drawX(game, pos)
             elif what == 2: # Disegna O
@@ -190,20 +194,51 @@ def adjustPositions(correctContoursToArrange): # Creazione matrice 3x3 con le po
         for item in correctContoursToArrange["checkers"]:
             if index == 0:
                 # Se l'item ha y (punto più alto) all'interno della banda -> Aggiunta alla 1° row di app
+                if band[0] <= item[1][1] <= band[1]: app[0].append(item)
             elif index == 1:
                 # Rileva centro item, se esso è all'interno della banda -> Aggiunta alla 2° row di app
+                if item[0] == 1: # Se è X, il centro è:
+                    centerY = item[1][1]+(item[1][3]/2)
+                else: # Se è O, il centro è
+                    _, centerY = item[1]
+                if band[0] <= centerY <= band[1]: app[1].append(item)
             else:
                 # Se l'item ha y_item+h_item (punto più basso) all'interno della banda -> Aggiunta alla 3° row di app
+                if item[0] == 1: # Se è X, il punto più basso è:
+                    bottomY = item[1][1]+item[1][3]
+                else:
+                    bottomY = item[1][1]
+                if band[0] <= bottomY <= band[1]: app[2].append(item)
+    #print(app)
 
     # Arrangiamento delle righe sulla base delle bande verticali
     # Confronto con x e x2 del centro
     bands = ((0, x_centro), (x_centro, x2_centro), (x2_centro, x3_adg))
-    for index in range(len(bands)):
-    band = bands[index]
-    for index_app in range(len(app)):
-        # Opera i confronti sulla riga corrente
-        
-    return app
+    matrix = [[0] * 3 for _ in range(3)]
+    for indexRow in range(len(app)): # Opera i confronti riga per riga
+        row = app[indexRow]
+        for item in row: # Per ogni elemento della riga, controlla in che banda verticale si trova            
+            for index in range(len(bands)): # Rileva posizione rispetto alle 3 bande verticali
+                band = bands[index]
+                if index == 0:
+                    # Se l'item ha x (punto più a sinistra) all'interno della banda -> Aggiunta alla 1° colonna
+                    if band[0] <= item[1][1] <= band[1]: matrix[indexRow][0] = item[0]
+                elif index == 1:
+                    # Rileva centro item, se esso è all'interno della banda -> Aggiunta alla 2° colonna
+                    if item[0] == 1: # Se è X, il centro è:
+                        centerX = item[1][0]+(item[1][2]/2)
+                    else: # Se è O, il centro è
+                        centerX = item[1][0]
+                    if band[0] <= centerX <= band[1]: matrix[indexRow][1] = item[0]
+                else:
+                    # Se l'item ha x_item+w_item (punto più a destra) all'interno della banda -> Aggiunta alla 3° colonna
+                    if item[0] == 1: # Se è X, il punto più a destra è:
+                        rightX = item[1][0]+item[1][2]
+                    else:
+                        rightX = item[1][0]
+                    if band[0] <= rightX <= band[1]: matrix[indexRow][2] = item[0]
+    #print(matrix)
+    return matrix
 
 def checkAndSub(currentContours): # Controllo sovrapposizioni: restituisce una lista di 9 contours
     # Area di gioco rilevata: x_area,y_area - x2_area,y2_area
@@ -215,16 +250,38 @@ def checkAndSub(currentContours): # Controllo sovrapposizioni: restituisce una l
     h_mid_subarea = (h_area/3)/2
     itemsInsidePlayarea = []
     for item in currentContours["checkers"]:
-        if item[0] == 1: x, y, _, _ = item[1]
+        if item[0] == 1:
+            x, y, w, h = item[1]
+            x = x + (w/2) # Coordinata x del centro della X
+            y = y + (h/2) # Coordinata y del centro della X
         else: x, y = item[1]
         if  x_area <= x <= x2_area and y_area <= y <= y2_area: itemsInsidePlayarea.append(item)
     itemsInsidePlayarea.sort(key=lambda x: x[1][0])
-    print("Area di gioco:", x_area, y_area, x2_area, y2_area)
-    print("Larghezza area di gioco:", w_area, "e larghezza sottoarea:",w_mid_subarea*2)
+    #print("Area di gioco:", x_area, y_area, x2_area, y2_area)
+    #print("Larghezza area di gioco:", w_area, "e larghezza sottoarea:",w_mid_subarea*2)
     #print(itemsInsidePlayarea)
-    # Rilevazione e sostituzione sovrapposizioni solo per le X
+    # Rilevazione collisioni tra X e O
+    collisions = []
+    for item in itemsInsidePlayarea:
+        if item[0] == 1: # Trovata X
+            x, y, w, h = item[1]
+            x2 = x+w
+            y2 = y+h
+            for item2 in itemsInsidePlayarea:
+                if item2[0] == 2: # Trovato O. Test
+                    x_cerchio, y_cerchio = item2[1]
+                    #print("Le coordinate della X sono:", item[1], "mentre il centro di O è:", item2[1])
+                    if x <= x_cerchio <= x2 and y <= y_cerchio <= y2: # Trovata collisione
+                        collisions.append(item)
+
+    # Aggiunta dei contours corretti
+    
     correctContours = []
-    analyzedOs = []
+    for item in itemsInsidePlayarea:
+        if (item[0] == 1 and item not in collisions) or item[0] == 2:
+            correctContours.append(item)
+            
+    '''
     for item in itemsInsidePlayarea:
         if item[0] == 1:
             x, y, w, h = item[1]
@@ -248,7 +305,8 @@ def checkAndSub(currentContours): # Controllo sovrapposizioni: restituisce una l
         elif item[0] == 2 and item not in analyzedOs:
             correctContours.append(item)
             analyzedOs.append(item)
-    print(correctContours)
+    '''
+    #print(correctContours)
     correctContoursDict = {}
     correctContoursDict["ADG"] = currentContours["ADG"]
     correctContoursDict["center"] = currentContours["center"]
@@ -319,15 +377,19 @@ def scanTable(game, row, col, cap):
 
 
         drawTableOnbgWhatISee(game, game.getTable(row, col), col * area_w, row * area_h)
+        if "ADG" in currentContours and "center" in currentContours:
+            # Rileva eventuali sovrapposizioni con altri contour già presenti - in caso, sostituisci eventuali X erroneamente rilevate
+            correctContours = checkAndSub(currentContours)
+            # Rileva posizione rispetto al centro e modifica arrangiamento dei checker
+            matrix = adjustPositions(correctContours)
+            game.setTable(row, col, matrix)
+            updateWhatISeeWindow(game) 
         cv2.imshow("Frame", frame)
         cv2.imshow("Mask", mask)
 
         key = cv2.waitKey(1)
         if key == 32: # Interrompi scansione con il tasto Barra Spaziatrice
-            # Rileva eventuali sovrapposizioni con altri contour già presenti - in caso, sostituisci eventuali X erroneamente rilevate
-            correctContours = checkAndSub(currentContours)
-            # Rileva posizione rispetto al centro e modifica arrangiamento dei checker
-            return adjustPositions(correctContours)
+            return matrix
 
 # Main
 def main():
@@ -341,17 +403,17 @@ def main():
     cv2.createTrackbar("Approx", "Sliders", 8, 100, approxx) #108
 
     showWhatISeeWindow(game)
-    game.getTable(0, 1)[0][0] = 1
-    game.getTable(0, 1)[0][1] = 1
-    game.getTable(0, 1)[0][2] = 1
-    game.getTable(1, 1)[0][0] = 2
-    updateWhatISeeWindow(game)
+    #game.getTable(0, 1)[0][0] = 1
+    #game.getTable(0, 1)[0][1] = 1
+    #game.getTable(0, 1)[0][2] = 1
+    #game.getTable(1, 1)[0][0] = 2
+    #updateWhatISeeWindow(game)
     highlightCurrentTableInWhatISeeWindow(game, 1, 1)
     
-    drawWinInWhatISeeWindow(game, 1, 2, 2)
-    drawWinInWhatISeeWindow(game, 2, 2, 1)
-    drawWinInWhatISeeWindow(game, 1, 1, 1)
-    game.checkWinGame()
+    #drawWinInWhatISeeWindow(game, 1, 2, 2)
+    #drawWinInWhatISeeWindow(game, 2, 2, 1)
+    #drawWinInWhatISeeWindow(game, 1, 1, 1)
+    #game.checkWinGame()
     
     game.setTable(1, 1, scanTable(game, 1, 1, cap))
     updateWhatISeeWindow(game)       
