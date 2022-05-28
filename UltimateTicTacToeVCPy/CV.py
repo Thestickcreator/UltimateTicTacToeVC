@@ -175,12 +175,35 @@ def highlightCurrentTableInWhatISeeWindow(game, row, col):
 # Metodi di appoggio
 
 def adjustPositions(correctContoursToArrange): # Creazione matrice 3x3 con le posizioni corrette
-    #TODO
     # Centro: x_centro,y_centro - x2_centro,y2_centro
     x_centro, y_centro, w_centro, h_centro = correctContoursToArrange["center"]
     x2_centro = x_centro+w_centro
     y2_centro = y_centro+h_centro
-    return None
+    x3_adg = correctContoursToArrange["ADG"][0] + correctContoursToArrange["ADG"][2]
+    y3_adg = correctContoursToArrange["ADG"][1] + correctContoursToArrange["ADG"][3]
+    bands = ((0, y_centro), (y_centro, y2_centro), (y2_centro, y3_adg))
+    # L'ordinamento da sinistra verso destra è già assicurato dal sort avvenuto nella fase precedente sulla base della coordinata x
+    app = [[], [], []]
+    
+    for index in range(len(bands)):
+        band = bands[index]
+        for item in correctContoursToArrange["checkers"]:
+            if index == 0:
+                # Se l'item ha y (punto più alto) all'interno della banda -> Aggiunta alla 1° row di app
+            elif index == 1:
+                # Rileva centro item, se esso è all'interno della banda -> Aggiunta alla 2° row di app
+            else:
+                # Se l'item ha y_item+h_item (punto più basso) all'interno della banda -> Aggiunta alla 3° row di app
+
+    # Arrangiamento delle righe sulla base delle bande verticali
+    # Confronto con x e x2 del centro
+    bands = ((0, x_centro), (x_centro, x2_centro), (x2_centro, x3_adg))
+    for index in range(len(bands)):
+    band = bands[index]
+    for index_app in range(len(app)):
+        # Opera i confronti sulla riga corrente
+        
+    return app
 
 def checkAndSub(currentContours): # Controllo sovrapposizioni: restituisce una lista di 9 contours
     # Area di gioco rilevata: x_area,y_area - x2_area,y2_area
@@ -300,10 +323,10 @@ def scanTable(game, row, col, cap):
         cv2.imshow("Mask", mask)
 
         key = cv2.waitKey(1)
-        if key == 27: # Interrompi scansione con il tasto "ESC"
+        if key == 32: # Interrompi scansione con il tasto Barra Spaziatrice
             # Rileva eventuali sovrapposizioni con altri contour già presenti - in caso, sostituisci eventuali X erroneamente rilevate
             correctContours = checkAndSub(currentContours)
-            # Rileva posizione rispetto a centerChecker e modifica checker (la variabile globale)
+            # Rileva posizione rispetto al centro e modifica arrangiamento dei checker
             return adjustPositions(correctContours)
 
 # Main
