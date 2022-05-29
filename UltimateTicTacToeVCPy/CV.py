@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+import tkinter as tk
+from tkinter.messagebox import askyesno
 
 class Game:
     tables = None # Matrice di tabelle
@@ -88,11 +90,14 @@ def init_bgWhatISee():
         for horizontal in range(3):
             offsetX = area_h*horizontal+offset
             offsetY = area_w*vertical+offset
-            cv2.rectangle(bgChecker, (offsetX+width_subarea+offset, offsetY+offset), (offsetX+width_subarea+offset, offsetY+(heigth_subarea*3)+offset), (0, 0, 0), -1)
-            cv2.rectangle(bgChecker, (offsetX+width_subarea*2+offset, offsetY+offset), (offsetX+width_subarea*2+offset, offsetY+(heigth_subarea*3)+offset), (0, 0, 0), -1)
-            cv2.rectangle(bgChecker, (offsetX+offset, offsetY+width_subarea+offset), (offsetX+(width_subarea*3)+offset, offsetY+width_subarea+offset), (0, 0, 0), -1)
-            cv2.rectangle(bgChecker, (offsetX+offset, offsetY+heigth_subarea*2+offset), (offsetX+(width_subarea*3)+offset, offsetY+heigth_subarea*2+offset), (0, 0, 0), -1)
+            drawSubGameonbgWhatISee(bgChecker, offsetX, offsetY, width_subarea, heigth_subarea)
     return bgChecker
+
+def drawSubGameonbgWhatISee(bg, offsetX, offsetY, width_subarea, heigth_subarea):
+    cv2.rectangle(bg, (offsetX+width_subarea+offset, offsetY+offset), (offsetX+width_subarea+offset, offsetY+(heigth_subarea*3)+offset), (0, 0, 0), -1)
+    cv2.rectangle(bg, (offsetX+width_subarea*2+offset, offsetY+offset), (offsetX+width_subarea*2+offset, offsetY+(heigth_subarea*3)+offset), (0, 0, 0), -1)
+    cv2.rectangle(bg, (offsetX+offset, offsetY+width_subarea+offset), (offsetX+(width_subarea*3)+offset, offsetY+width_subarea+offset), (0, 0, 0), -1)
+    cv2.rectangle(bg, (offsetX+offset, offsetY+heigth_subarea*2+offset), (offsetX+(width_subarea*3)+offset, offsetY+heigth_subarea*2+offset), (0, 0, 0), -1)
    
 def drawX(game, pos):
     # Disegna 2 linee
@@ -136,14 +141,15 @@ def drawTableOnbgWhatISee(game, table, offsetX, offsetY):
     posMatrix = [[(trait_w, trait_h), (3*trait_w, trait_h), (5*trait_w, trait_h)],
                  [(trait_w, 3*trait_h), (3*trait_w, 3*trait_h), (5*trait_w, 3*trait_h)],
                  [(trait_w, 5*trait_h), (3*trait_w, 5*trait_h), (5*trait_w, 5*trait_h)]]
+    # Ripulisci il precedente contenuto
+    cv2.rectangle(game.paintedChecker,
+                  (2*offset+offsetX,2*offset+offsetY), 
+                  (offsetX+area_w,offsetY+area_h), (255, 255, 255), -1)
+    drawSubGameonbgWhatISee(game.paintedChecker, offsetX+offset, offsetY+offset, int((area_w-2*offset)/3), int((area_h-2*offset)/3))
     for row in range(3):
         for col in range(3):
             pos = (posMatrix[row][col][0] + offsetX + 2*offset, posMatrix[row][col][1] + offsetY + 2*offset)
             what = table[row][col]
-            # Ripulisci il precedente contenuto
-            cv2.rectangle(game.paintedChecker,
-                          (pos[0]-trait_w, pos[1]-trait_h), 
-                          (pos[0]+trait_w, pos[1]+trait_h), (255, 255, 255), -1)
             if what == 1: # Disegna X
                 drawX(game, pos)
             elif what == 2: # Disegna O
@@ -210,33 +216,39 @@ def adjustPositions(correctContoursToArrange): # Creazione matrice 3x3 con le po
                     bottomY = item[1][1]
                 if band[0] <= bottomY <= band[1]: app[2].append(item)
     #print(app)
+    
 
     # Arrangiamento delle righe sulla base delle bande verticali
     # Confronto con x e x2 del centro
     bands = ((0, x_centro), (x_centro, x2_centro), (x2_centro, x3_adg))
+    #print(bands)
     matrix = [[0] * 3 for _ in range(3)]
     for indexRow in range(len(app)): # Opera i confronti riga per riga
         row = app[indexRow]
-        for item in row: # Per ogni elemento della riga, controlla in che banda verticale si trova            
-            for index in range(len(bands)): # Rileva posizione rispetto alle 3 bande verticali
-                band = bands[index]
-                if index == 0:
-                    # Se l'item ha x (punto più a sinistra) all'interno della banda -> Aggiunta alla 1° colonna
-                    if band[0] <= item[1][1] <= band[1]: matrix[indexRow][0] = item[0]
-                elif index == 1:
-                    # Rileva centro item, se esso è all'interno della banda -> Aggiunta alla 2° colonna
-                    if item[0] == 1: # Se è X, il centro è:
-                        centerX = item[1][0]+(item[1][2]/2)
-                    else: # Se è O, il centro è
-                        centerX = item[1][0]
-                    if band[0] <= centerX <= band[1]: matrix[indexRow][1] = item[0]
+        for item in row: # Per ogni elemento della riga, controlla in che banda verticale si trova
+            # Banda 0
+            # Se l'item ha x (punto più a sinistra) all'interno della banda -> Aggiunta alla 1° colonna
+            if item[1][0] <= x_centro: matrix[indexRow][0] = item[0]
+            else:
+                # Banda 1
+                # Rileva centro item, se esso è all'interno della banda -> Aggiunta alla 2° colonna
+                if item[0] == 1: # Se è X, il centro è:
+                    centerX = item[1][0]+(item[1][2]/2)
+                else: # Se è O, il centro è
+                    centerX = item[1][0]
+                if x_centro <= centerX <= x2_centro: matrix[indexRow][1] = item[0]
                 else:
+                    # Banda 2
+                    matrix[indexRow][2] = item[0]
+                    '''                    
                     # Se l'item ha x_item+w_item (punto più a destra) all'interno della banda -> Aggiunta alla 3° colonna
                     if item[0] == 1: # Se è X, il punto più a destra è:
                         rightX = item[1][0]+item[1][2]
                     else:
                         rightX = item[1][0]
-                    if band[0] <= rightX <= band[1]: matrix[indexRow][2] = item[0]
+                    if bands[2][0] <= rightX <= bands[2][1]:
+                    '''
+                    
     #print(matrix)
     return matrix
 
@@ -375,21 +387,23 @@ def scanTable(game, row, col, cap):
                         currentContours["checkers"].append((2, (i[0], i[1])))
                         cv2.circle(frame, (i[0], i[1]), i[2], colorO, 3) # Disegna O in blu
 
-
-        drawTableOnbgWhatISee(game, game.getTable(row, col), col * area_w, row * area_h)
         if "ADG" in currentContours and "center" in currentContours:
             # Rileva eventuali sovrapposizioni con altri contour già presenti - in caso, sostituisci eventuali X erroneamente rilevate
             correctContours = checkAndSub(currentContours)
             # Rileva posizione rispetto al centro e modifica arrangiamento dei checker
             matrix = adjustPositions(correctContours)
             game.setTable(row, col, matrix)
-            updateWhatISeeWindow(game) 
+            drawTableOnbgWhatISee(game, game.getTable(row, col),
+                                  col * area_w, row * area_h)
+
         cv2.imshow("Frame", frame)
         cv2.imshow("Mask", mask)
 
         key = cv2.waitKey(1)
         if key == 32: # Interrompi scansione con il tasto Barra Spaziatrice
-            return matrix
+            ROOT = tk.Tk()
+            ROOT.withdraw()
+            if askyesno("Conferma", "La scansione è corretta?"): return
 
 # Main
 def main():
@@ -415,8 +429,9 @@ def main():
     #drawWinInWhatISeeWindow(game, 1, 1, 1)
     #game.checkWinGame()
     
-    game.setTable(1, 1, scanTable(game, 1, 1, cap))
-    updateWhatISeeWindow(game)       
+    scanTable(game, 1, 1, cap)
+    updateWhatISeeWindow(game)
+    time.sleep(3)
     
     cap.release()
     cv2.destroyAllWindows()
