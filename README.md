@@ -7,4 +7,4 @@ L'idea nasce dallo studio della Computer Vision (CV, presente nel nome del proge
 L'aggiunta della parte di intelligenza artificiale risiede nella creazione di un sistema automatico che sia in grado di giocare (e, quanto meno, _NON perdere_) contro l'utente. UltimateTicTacToeVC utilizzerà una versione modificata, generalizzata ed adattata di Minimax.
 
 ## Strumenti usati
-Python + PyCharms + OpenCV (pip install opencv-python). Algoritmo Minimax.
+Python + PyCharms + OpenCV (pip install opencv-python) + TKInter. Algoritmo Minimax.
