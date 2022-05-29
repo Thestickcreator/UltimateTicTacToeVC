@@ -50,6 +50,7 @@ class Table:
 LB = 0
 UB = 0
 Appr = 0.01
+CenterThresholdParam2 = 0
 colorX = (0, 252, 255)
 colorO = (255, 0, 0)
 colorNeutral = (43, 240, 96)
@@ -68,6 +69,9 @@ def maxx(x):
 def approxx(x):
     global Appr
     Appr = cv2.getTrackbarPos("Approx", "Sliders")/1000 + 0.008
+def ctp2(x):
+    global CenterThresholdParam2
+    CenterThresholdParam2 = cv2.getTrackbarPos("Center Threshold (Param2)", "Sliders")
 
 # --------------------------------------------------------------------------------------------------------
 # Grafica: Finestra "What I See"
@@ -160,6 +164,7 @@ def updateWhatISeeWindow(game):
     for gameRow in range(3):
         for gameCol in range(3):
             # Disegna X se checker[gameRow][gameCol] == 1. Oppure disegna O se checker[gameRow][gameCol] == 2
+            if game.getTable(gameRow, gameCol)[0][0] == -1: continue # Gioco già vinto
             drawTableOnbgWhatISee(game,
                                   game.getTable(gameRow, gameCol),
                                   gameCol * area_w, gameRow * area_h)
@@ -366,7 +371,7 @@ def scanTable(game, row, col, cap):
                         cv2.rectangle(frame, (a, b), (a + c, b + d), (0, 255, 0), 2)
                         cv2.putText(frame, "Centro (" + str(len(approx)) + ")", (a, b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                         currentContours["center"] = rect        
-            if 11 <= len(approx) <= 18: # Trovare Checker X
+            if 11 <= len(approx) <= 20: # Trovare Checker X
                 rect = cv2.boundingRect(contour)
                 x, y, w, h = rect
                 # Se è rilevata una X, allora PROBABILMENTE è corretta. Rimane da constatare se si trova all'interno dell'area di gioco o meno
@@ -376,14 +381,15 @@ def scanTable(game, row, col, cap):
                 currentContours["checkers"].append((1, rect))
                 cv2.putText(frame, "X", (int(x+w/2), int(y+h/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colorX, 2) # Disegna X in giallo
 
-        circles = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT, 1, 120, param1=100, param2=30, minRadius=0, maxRadius=0)
+        circles = cv2.HoughCircles(mask, cv2.HOUGH_GRADIENT, 1, 20, param1=20, param2=CenterThresholdParam2, minRadius=0, maxRadius=0)
         if circles is not None: # Trovare Checker O
             circles = np.uint16(np.around(circles))
             for i in circles[0, :]:
                 # Se è rilevato un O, allora è SICURAMENTE corretto. Rimane da constatare se si trova all'interno dell'area di gioco o meno
                 if "ADG" in currentContours:
                     x_ADG, y_ADG, w_ADG, h_ADG = currentContours["ADG"]
-                    if x_ADG < i[0] < (x_ADG+w_ADG) and y_ADG < i[1] < (y_ADG+h_ADG): # Trovato O interno all'area di gioco
+                    if (x_ADG < i[0] < (x_ADG+w_ADG) and y_ADG < i[1] < (y_ADG+h_ADG) and
+                        i[2]*2 < currentContours["ADG"][2]/4): # Trovato O interno all'area di gioco e che sia abbastanza piccolo
                         currentContours["checkers"].append((2, (i[0], i[1])))
                         cv2.circle(frame, (i[0], i[1]), i[2], colorO, 3) # Disegna O in blu
 
@@ -414,7 +420,9 @@ def main():
     bars = cv2.namedWindow("Sliders")
     cv2.createTrackbar("LivelloMin", "Sliders", 100, 255, minn) #38
     cv2.createTrackbar("LivelloMax", "Sliders", 255, 255, maxx) #108
-    cv2.createTrackbar("Approx", "Sliders", 8, 100, approxx) #108
+    cv2.createTrackbar("Approx", "Sliders", 4, 100, approxx) #108
+    cv2.createTrackbar("Center Threshold (Param2)", "Sliders", 35, 50, ctp2) #35
+    cv2.createTrackbar("Numero Lati X", "Sliders", 35, 50, ctp2) #35
 
     showWhatISeeWindow(game)
     #game.getTable(0, 1)[0][0] = 1
@@ -430,6 +438,7 @@ def main():
     #game.checkWinGame()
     
     scanTable(game, 1, 1, cap)
+    game.checkWinGame()
     updateWhatISeeWindow(game)
     time.sleep(3)
     
