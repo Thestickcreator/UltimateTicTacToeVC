@@ -256,8 +256,22 @@ def checkAndSub(currentContours): # Controllo sovrapposizioni: restituisce una l
 
 # Metodi pubblici -------------------------------------------------
 def scanTable(game, row, col):
+    # Parametri di calibrazione
+    try:
+        cv2.getWindowProperty('Sliders', 0)
+    except Exception:
+        cv2.namedWindow("Sliders")
+        cv2.resizeWindow("Sliders", 500, 200) 
+        cv2.createTrackbar("Lum Min", "Sliders", 100, 255, minn) #38
+        cv2.createTrackbar("Lum Max", "Sliders", 255, 255, maxx) #108
+        cv2.createTrackbar("Approsimazione Contours", "Sliders", 4, 100, approxx) #108
+        cv2.createTrackbar("Center Threshold (Param2)", "Sliders", 35, 50, ctp2) #35
+        
     # Preparazione alla rilevazione tramite webcam
-    cap = cv2.VideoCapture(0)
+    try:
+        cap
+    except NameError:
+        cap = cv2.VideoCapture(0)
     while True:
         _, frame = cap.read()
 
@@ -337,4 +351,6 @@ def scanTable(game, row, col):
             ROOT.withdraw()
             if askyesno("Conferma", "La scansione è corretta?"):
                 cap.release()
+                cv2. destroyWindow("Frame")
+                cv2. destroyWindow("Mask")
                 return

@@ -3,10 +3,9 @@ from SupportClasses import *
 from tkinter.messagebox import showerror
 
 # Metodi pubblici
-def nextMove(game, freeChoice, currentTableIndexes): # Codifica: ((rowTable, colTable), (row, col))
+def nextMove(game, freeChoice, currentTableIndexes, whoAmI): # Codifica: ((rowTable, colTable), (row, col))
     if freeChoice: # Scelta libera: inizio partita o table già conclusa
         return
     else: # Scelta cardinata
-        print("lessgo")
-        return
+        return ((1,1), (2,2))
     return None

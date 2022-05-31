@@ -4,7 +4,12 @@ from CV import *
 from IA import *
 from SupportClasses import *
 from tkinter.simpledialog import askstring
+from tkinter.messagebox import askyesno
 from tkinter.messagebox import showinfo
+from random import randint
+
+# Variabili globali
+ROOT = None
 
 # Metodi ausiliari
 def checkWinGame(game): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
@@ -37,14 +42,9 @@ def play(game):
     currentTableIndexes = None
     currentChecker = True # True = X; False = O
     previousArrangement = None # Copia di appoggio del precedente arrangement della table da scansionare
-
-    ROOT = tk.Tk()
-    ROOT.withdraw()
-
-    whoBegins = ("lo user" if game.turn else "il computer")
-    showinfo("Inizio gioco", "Comincia " + whoBegins + " con i checker X!")    
     
     while True:
+        whatChecker = (1 if currentChecker else 2)
         if game.turn:
             # Turno dello user
             if freeChoice: # Scelta libera: inizio partita o table già conclusa
@@ -60,14 +60,15 @@ def play(game):
                             if not game.alreadyEnded(tableToScan[0], tableToScan[1]): break
                             else: showerror("Errore", "La table scelta è già conclusa! Riprovare l'inserimento.")
                     else: showerror("Errore", "Errore nell'inserimento! Riprovare.")
-                highlightCurrentTableInWhatISeeWindow(game, tableToScan[0], tableToScan[1]) # Aggiorna
-                previousArrangement = game.getTable(tableToScan[0], tableToScan[1]).copy()
-                scanTable(game, tableToScan[0], tableToScan[1])       
+                toScanIndexes = tableToScan
             else: # Scelta cardinata
-                highlightCurrentTableInWhatISeeWindow(game, currentTableIndexes[0], currentTableIndexes[1])
-                scanTable(game, currentTableIndexes[0], currentTableIndexes[1])
-            currentTableIndexes = whatsTheLastMove(previousArrangement, game.getTable(tableToScan[0], tableToScan[1]))
-            whatChecker = (1 if currentChecker else 2)
+                toScanIndexes = currentTableIndexes
+                
+            highlightCurrentTableInWhatISeeWindow(game, toScanIndexes[0], toScanIndexes[1]) # Aggiorna focus
+            previousArrangement = game.getTable(toScanIndexes[0], toScanIndexes[1]).copy()
+            scanTable(game, toScanIndexes[0], toScanIndexes[1])                       
+            currentTableIndexes = whatsTheLastMove(previousArrangement, game.getTable(toScanIndexes[0], toScanIndexes[1]))
+            
             if currentTableIndexes[1] != whatChecker:
                 whatChecker = ("X" if currentChecker else "O")
                 scannedChecker = ("X" if currentTableIndexes[1]==1 else "O")
@@ -77,11 +78,11 @@ def play(game):
             #print(currentTableIndexes)
             freeChoice = (False if not game.alreadyEnded(currentTableIndexes[0], currentTableIndexes[1]) else True) 
         else:
-            # Turno del computer
-            nM = nextMove(game, freeChoice, currentTableIndexes) # Codifica: ((rowTable, colTable), (row, col))
-            whatChecker = (1 if currentChecker else 2)
+            # Turno del computer            
+            nM = nextMove(game, freeChoice, currentTableIndexes, whatChecker) # Codifica: ((rowTable, colTable), (row, col))
             game.setTableChecker(nM[0][0], nM[0][1], nM[1][0], nM[1][1], whatChecker)
             updateWhatISeeWindow(game)
+            currentTableIndexes = (nM[1][0], nM[1][1])
             freeChoice = (False if not game.alreadyEnded(nM[1][0], nM[1][1]) else True)
             
         cW = checkWinGame(game) # Controllo eventuale vittoria ad ogni mossa
@@ -96,19 +97,34 @@ def play(game):
             
 # Main
 def main():
-    # Parametri di calibrazione
-    bars = cv2.namedWindow("Sliders")
-    cv2.createTrackbar("Lum Min", "Sliders", 100, 255, minn) #38
-    cv2.createTrackbar("Lum Max", "Sliders", 255, 255, maxx) #108
-    cv2.createTrackbar("Approsimazione Contours", "Sliders", 4, 100, approxx) #108
-    cv2.createTrackbar("Center Threshold (Param2)", "Sliders", 35, 50, ctp2) #35
-
-    # Chi inizia?
-    userBegins = True # Si comincia sempre con X. True = inizia lo user; False = inizia il computer
     
+    # Chi inizia?
+    ROOT = tk.Tk()
+    ROOT.withdraw()
+    coinFlip = askyesno("Testa o croce", "Scegli testa?")
+    coinFlip = (1 if coinFlip else 2) # 1 = Testa; 2 = Croce
+    outcome = randint(1, 2)
+    video = cv2.VideoCapture("Testa.mp4" if outcome == 1 else "Croce.mp4")
+    while(video.isOpened()):
+        ret, frame = video.read()
+        if ret:
+            cv2.imshow("Testa o Croce", frame)
+            cv2.waitKey(17)
+        else:
+            break
+    
+    userBegins = (True if outcome == coinFlip else False) # Si comincia sempre con X. True = inizia lo user; False = inizia il computer  
+
     # Nuovo gioco
     uttt = Game(userBegins)
 
+    whoBegins = ("lo user" if uttt.turn else "il computer")
+    showinfo("Inizio gioco", "È uscito " + ("testa" if outcome == 1 else "croce") + ", quindi comincia " + whoBegins + " con i checker X!") 
+
+    # Release delle finestre per il testa o croce
+    video.release()
+    cv2.destroyAllWindows()
+    
     showWhatISeeWindow(uttt)
     #updateWhatISeeWindow(uttt)
     #highlightCurrentTableInWhatISeeWindow(uttt, 1, 1)
