@@ -2,49 +2,6 @@ import cv2
 import numpy as np
 import tkinter as tk
 from tkinter.messagebox import askyesno
-
-class Game:
-    tables = None # Matrice di tabelle
-    paintedChecker = None # Finestra per mostrare lo stato attuale del gioco
-    status = None
-    def __init__(self):
-        self.tables = [[Table() for _ in range(3)] for _ in range(3)]
-        self.status = [[0] * 3 for _ in range(3)]
-    def getTable(self, row, col):
-        return self.tables[row][col].table
-    def setTable(self, row, col, matrix):
-        self.tables[row][col].table = matrix
-    def checkWinGame(self): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
-        for row in range(3):
-            for col in range(3):
-                self.status[row][col] = Table.checkWinTable(self.tables[row][col].table) # Vittoria registrata
-                if self.status[row][col] != 0:
-                    # Reset di quel sotto-gioco
-                    self.tables[row][col].resetTable()
-                    drawWinInWhatISeeWindow(self, row, col, self.status[row][col])
-        #Check vittoria sulla matrice di stato
-        return Table.checkWinTable(self.status)
-
-class Table:
-    table = None
-    def __init__(self):
-        self.table = [[0] * 3 for _ in range(3)] # 0 = Casella vuota; 1 = X; 2 = O; -1 = Gioco concluso
-    def resetTable(self):
-        self.table = [[-1] * 3 for _ in range(3)]
-    def checkWinTable(table): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
-        # Per righe
-        if table[0][0] == table[0][1] and table[0][0] == table[0][2] and table[0][0] != 0: return table[0][0]
-        if table[1][0] == table[1][1] and table[1][0] == table[1][2] and table[1][0] != 0: return table[1][0]
-        if table[2][0] == table[2][1] and table[2][0] == table[2][2] and table[2][0] != 0: return table[2][0]
-        # Per colonne
-        if table[0][0] == table[1][0] and table[0][0] == table[2][0] and table[0][0] != 0: return table[0][0]
-        if table[0][1] == table[1][1] and table[0][1] == table[2][1] and table[0][1] != 0: return table[0][1]
-        if table[0][2] == table[1][2] and table[0][2] == table[2][2] and table[0][2] != 0: return table[0][2]
-        # Diagonali
-        if table[0][0] == table[1][1] and table[0][0] == table[2][2] and table[0][0] != 0: return table[0][0]
-        if table[0][2] == table[1][1] and table[0][2] == table[2][0] and table[0][2] != 0: return table[0][2]
-        # No Wins
-        return 0
         
 #Global
 LB = 0
@@ -62,13 +19,13 @@ offset = 20 # Spiazzamento rispetto ai bordi della finestra "What I See"
 # Funzioni di appoggio per finestra "Sliders"
 def minn(x):
     global LB
-    LB = cv2.getTrackbarPos("LivelloMin", "Sliders")
+    LB = cv2.getTrackbarPos("Lum Min", "Sliders")
 def maxx(x):
     global UB
-    UB = cv2.getTrackbarPos("LivelloMax", "Sliders")
+    UB = cv2.getTrackbarPos("Lum Max", "Sliders")
 def approxx(x):
     global Appr
-    Appr = cv2.getTrackbarPos("Approx", "Sliders")/1000 + 0.008
+    Appr = cv2.getTrackbarPos("Approsimazione Contours", "Sliders")/1000 + 0.008
 def ctp2(x):
     global CenterThresholdParam2
     CenterThresholdParam2 = cv2.getTrackbarPos("Center Threshold (Param2)", "Sliders")
@@ -245,14 +202,6 @@ def adjustPositions(correctContoursToArrange): # Creazione matrice 3x3 con le po
                 else:
                     # Banda 2
                     matrix[indexRow][2] = item[0]
-                    '''                    
-                    # Se l'item ha x_item+w_item (punto più a destra) all'interno della banda -> Aggiunta alla 3° colonna
-                    if item[0] == 1: # Se è X, il punto più a destra è:
-                        rightX = item[1][0]+item[1][2]
-                    else:
-                        rightX = item[1][0]
-                    if bands[2][0] <= rightX <= bands[2][1]:
-                    '''
                     
     #print(matrix)
     return matrix
@@ -298,31 +247,6 @@ def checkAndSub(currentContours): # Controllo sovrapposizioni: restituisce una l
         if (item[0] == 1 and item not in collisions) or item[0] == 2:
             correctContours.append(item)
             
-    '''
-    for item in itemsInsidePlayarea:
-        if item[0] == 1:
-            x, y, w, h = item[1]
-            center_item_x = x+w/2
-            center_item_y = y+h/2
-            x1_this_subarea = center_item_x-w_mid_subarea
-            x2_this_subarea = center_item_x+w_mid_subarea
-            y1_this_subarea = center_item_y-h_mid_subarea
-            y2_this_subarea = center_item_y+h_mid_subarea
-            # Cerca se c'è, tra gli altri contours, un O che occupa la stessa sottoarea
-            found = False
-            for item2 in itemsInsidePlayarea:
-                if item[0] == 2:
-                    x2, y2 = item[1]
-                    # Quest'O è all'interno dell'area in analisi?
-                    if  x1_this_subarea <= x2 <= x2_this_subarea and y1_this_subarea <= y2 <= y2_this_subarea:
-                        found = True
-                        analyzedOs.append(item2)
-                        correctContours.append(item2)
-            if not found: correctContours.append(item)
-        elif item[0] == 2 and item not in analyzedOs:
-            correctContours.append(item)
-            analyzedOs.append(item)
-    '''
     #print(correctContours)
     correctContoursDict = {}
     correctContoursDict["ADG"] = currentContours["ADG"]
@@ -331,7 +255,9 @@ def checkAndSub(currentContours): # Controllo sovrapposizioni: restituisce una l
     return correctContoursDict
 
 # Metodi pubblici -------------------------------------------------
-def scanTable(game, row, col, cap):
+def scanTable(game, row, col):
+    # Preparazione alla rilevazione tramite webcam
+    cap = cv2.VideoCapture(0)
     while True:
         _, frame = cap.read()
 
@@ -369,7 +295,7 @@ def scanTable(game, row, col, cap):
                     x, y, w, h = currentContours["ADG"]
                     if x < a < (x+w) and y < b < (y+h) and x < (a+c) < (x+w) and y < (b+d) < (y+h): # Found
                         cv2.rectangle(frame, (a, b), (a + c, b + d), (0, 255, 0), 2)
-                        cv2.putText(frame, "Centro (" + str(len(approx)) + ")", (a, b), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                        cv2.putText(frame, "Centro", (a, b+7), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 2)
                         currentContours["center"] = rect        
             if 11 <= len(approx) <= 20: # Trovare Checker X
                 rect = cv2.boundingRect(contour)
@@ -409,40 +335,6 @@ def scanTable(game, row, col, cap):
         if key == 32: # Interrompi scansione con il tasto Barra Spaziatrice
             ROOT = tk.Tk()
             ROOT.withdraw()
-            if askyesno("Conferma", "La scansione è corretta?"): return
-
-# Main
-def main():
-    game = Game()
-    
-    cap = cv2.VideoCapture(0)
-
-    bars = cv2.namedWindow("Sliders")
-    cv2.createTrackbar("LivelloMin", "Sliders", 100, 255, minn) #38
-    cv2.createTrackbar("LivelloMax", "Sliders", 255, 255, maxx) #108
-    cv2.createTrackbar("Approx", "Sliders", 4, 100, approxx) #108
-    cv2.createTrackbar("Center Threshold (Param2)", "Sliders", 35, 50, ctp2) #35
-    cv2.createTrackbar("Numero Lati X", "Sliders", 35, 50, ctp2) #35
-
-    showWhatISeeWindow(game)
-    #game.getTable(0, 1)[0][0] = 1
-    #game.getTable(0, 1)[0][1] = 1
-    #game.getTable(0, 1)[0][2] = 1
-    #game.getTable(1, 1)[0][0] = 2
-    #updateWhatISeeWindow(game)
-    highlightCurrentTableInWhatISeeWindow(game, 1, 1)
-    
-    #drawWinInWhatISeeWindow(game, 1, 2, 2)
-    #drawWinInWhatISeeWindow(game, 2, 2, 1)
-    #drawWinInWhatISeeWindow(game, 1, 1, 1)
-    #game.checkWinGame()
-    
-    scanTable(game, 1, 1, cap)
-    game.checkWinGame()
-    updateWhatISeeWindow(game)
-    time.sleep(3)
-    
-    cap.release()
-    cv2.destroyAllWindows()
-
-main()
+            if askyesno("Conferma", "La scansione è corretta?"):
+                cap.release()
+                return
