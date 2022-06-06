@@ -87,6 +87,12 @@ def drawWinInWhatISeeWindow(game, row, col, who):
         radius = int(((area_w-2*offset)/2) * (0.8)) # Raggio = dimensione area/2 con un rapporto dell'80%
         cv2.circle(game.paintedChecker, (area_w*col+int(area_w/2)+offset, area_h*row+int(area_h/2)+offset), radius, colorO, 3) # Spessore = 3  
     cv2.imshow("What I see", game.paintedChecker)
+
+def drawTieInWhatISeeWindow(game, row, col):
+    cv2.rectangle(game.paintedChecker,
+                          (2*offset+area_w*col, 2*offset+area_h*row), 
+                          (area_w*col+area_w, area_h*row+area_h), (0, 0, 255), -1)
+    cv2.imshow("What I see", game.paintedChecker)
     
 # Metodi pubblici -------------------------------------------------
 def showWhatISeeWindow(game):
@@ -118,13 +124,13 @@ def drawTableOnbgWhatISee(game, table, offsetX, offsetY):
     cv2.imshow("What I see", game.paintedChecker)
 
 def updateWhatISeeWindow(game):    
-    for gameRow in range(3):
-        for gameCol in range(3):
-            # Disegna X se checker[gameRow][gameCol] == 1. Oppure disegna O se checker[gameRow][gameCol] == 2
-            if game.getTable(gameRow, gameCol)[0][0] == -1: continue # Gioco già vinto
+    for tableRow in range(3):
+        for tableCol in range(3):
+            # Disegna X se checker[tableRow][tableCol] == 1. Oppure disegna O se checker[tableRow][tableCol] == 2
+            if game.alreadyEnded(tableRow, tableCol) or game.tie(tableRow, tableCol): continue # Table già vinta/pareggiata
             drawTableOnbgWhatISee(game,
-                                  game.getTable(gameRow, gameCol),
-                                  gameCol * area_w, gameRow * area_h)
+                                  game.getTable(tableRow, tableCol),
+                                  tableCol * area_w, tableRow * area_h)
     cv2.imshow("What I see", game.paintedChecker)
 
 def highlightCurrentTableInWhatISeeWindow(game, row, col):

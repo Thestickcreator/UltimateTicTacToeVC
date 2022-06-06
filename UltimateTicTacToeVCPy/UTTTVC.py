@@ -7,30 +7,45 @@ from tkinter.simpledialog import askstring
 from tkinter.messagebox import askyesno
 from tkinter.messagebox import showinfo
 from random import randint
-
-# Variabili globali
-ROOT = None
+import time
 
 # Metodi ausiliari
 def checkWinGame(game): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
     for row in range(3):
         for col in range(3):
-            game.status[row][col] = Table.checkWinTable(game.tables[row][col].table) # Vittoria registrata
-            if game.status[row][col] != 0:
+            checkPossibleWin = Table.checkWinTable(game.tables[row][col].table)
+            if checkPossibleWin > 0: game.updateWin(row, col, checkPossibleWin) # Vittoria registrata
+            if game.status[row][col] > 0:
                 # Reset di quel sotto-gioco
-                game.tables[row][col].resetTable()
+                game.tables[row][col].resetEndedTable()
                 drawWinInWhatISeeWindow(game, row, col, game.status[row][col]) # Update grafico
+
     # Check vittoria sulla matrice di stato
     return Table.checkWinTable(game.status)
 
+def checkTieGame(game): # Ritorna True o False
+    for row in range(3):
+        for col in range(3):
+            if Table.checkTieTable(game.tables[row][col].table): game.updateTie(row, col) # Pareggio registrato
+            if game.status[row][col] == -2:
+                # Reset di quel sotto-gioco
+                game.tables[row][col].resetTiedTable()
+                drawTieInWhatISeeWindow(game, row, col) # Update grafico
+    # Check vittoria sulla matrice di stato
+    return Table.checkTieTable(game.status)
+
 def whatsTheLastMove(before, after):
+    ROOT = tk.Tk()
+    ROOT.withdraw()
     listOfDifferences = []
     for row in range(3):
         for col in range(3):
-            if before[row][col] != after[row][col]: listOfDifferences.append(((row, col), after[row][col]))
-    if len(listOfDifferences) != 1:
-        ROOT = tk.Tk()
-        ROOT.withdraw()
+            if before[row][col] != after[row][col]:
+                if before[row][col] != 0:
+                    showerror("End", "Rilevata sostituzione di checker. Partita conclusa.")
+                    exit()
+                listOfDifferences.append(((row, col), after[row][col]))
+    if len(listOfDifferences) != 1:        
         showerror("End", "Rilevate molteplici mosse. Partita conclusa.")
         exit()
     return listOfDifferences[0]
@@ -42,12 +57,18 @@ def play(game):
     currentTableIndexes = None
     currentChecker = True # True = X; False = O
     previousArrangement = None # Copia di appoggio del precedente arrangement della table da scansionare
+    cW = 0 # Check win alla fine di ogni mossa
+    cT = False # Check tie alla fine di ogni mossa
+    nMoves = 0 # Advanced pruning
     
     while True:
+        ROOT = tk.Tk()
+        ROOT.withdraw()
         whatChecker = (1 if currentChecker else 2)
         if game.turn:
             # Turno dello user
             if freeChoice: # Scelta libera: inizio partita o table già conclusa
+                showinfo("Mossa dello user", "La mossa dello user è libera.")
                 while True:                    
                     inputUsr = askstring("Selezione Table da scansionare", "Inserisci una qualsiasi tabella da scansionare nella forma <row,column>")
                     if inputUsr is not None and len(inputUsr) == 3:
@@ -57,7 +78,7 @@ def play(game):
                         if tableToScan[0] not in (0,1,2) or tableToScan[1] not in (0,1,2):
                             showerror("Errore", "Indici non corretti! Riprovare l'inserimento.")
                         else:
-                            if not game.alreadyEnded(tableToScan[0], tableToScan[1]): break
+                            if not game.alreadyEnded(tableToScan[0], tableToScan[1]) and not game.tie(tableToScan[0], tableToScan[1]): break
                             else: showerror("Errore", "La table scelta è già conclusa! Riprovare l'inserimento.")
                     else: showerror("Errore", "Errore nell'inserimento! Riprovare.")
                 toScanIndexes = tableToScan
@@ -76,29 +97,46 @@ def play(game):
                 exit()
             currentTableIndexes = currentTableIndexes[0]
             #print(currentTableIndexes)
-            freeChoice = (False if not game.alreadyEnded(currentTableIndexes[0], currentTableIndexes[1]) else True) 
+
+            # Sezione controlli: pareggio, vittoria, freeChoice (table già conclusa o in pareggio)
+            cT = checkTieGame(game)
+            if cT: break
+            cW = checkWinGame(game) # Controllo eventuale vittoria ad ogni mossa
+            if cW != 0: break
+            freeChoice = game.alreadyEnded(currentTableIndexes[0], currentTableIndexes[1]) or game.tie(currentTableIndexes[0], currentTableIndexes[1])
         else:
-            # Turno del computer            
-            nM = nextMove(game, freeChoice, currentTableIndexes, whatChecker) # Codifica: ((rowTable, colTable), (row, col))
+            # Turno del computer
+            if not freeChoice: highlightCurrentTableInWhatISeeWindow(game, currentTableIndexes[0], currentTableIndexes[1]) # Aggiorna focus
+            else: showinfo("Mossa del computer", "La mossa del computer è libera.")
+            nM = nextMove(game, freeChoice, currentTableIndexes, whatChecker, nMoves) # Codifica: ((rowTable, colTable), (row, col))
             game.setTableChecker(nM[0][0], nM[0][1], nM[1][0], nM[1][1], whatChecker)
             updateWhatISeeWindow(game)
+            showinfo("Mossa del computer", "La mossa del computer è stata nella table " + str(nM[0]) + ", al checker " + str(nM[1]) + ".")
+            time.sleep(1)
             currentTableIndexes = (nM[1][0], nM[1][1])
-            freeChoice = (False if not game.alreadyEnded(nM[1][0], nM[1][1]) else True)
             
-        cW = checkWinGame(game) # Controllo eventuale vittoria ad ogni mossa
-        if cW != 0:
-            break
-        
+            # Sezione controlli: pareggio, vittoria, freeChoice (table già conclusa o in pareggio)
+            cT = checkTieGame(game)
+            if cT: break
+            cW = checkWinGame(game) # Controllo eventuale vittoria ad ogni mossa
+            if cW != 0: break
+            freeChoice = game.alreadyEnded(nM[1][0], nM[1][1]) or game.tie(nM[1][0], nM[1][1])
+
         game.turn = not game.turn # Cambio turno
         currentChecker = not currentChecker # La prossima mossa sarà con l'altro checker
-        
-    whoWins = ("lo user" if game.turn else "il computer") # Ha vinto il giocatore che ha eseguito l'ultima mossa
-    showinfo("Fine gioco", "Ha vinto " + whoWins + " con i checker " + ("X" if cW == 1 else "O") + "!")
+        nMoves += 1
+
+    # Caso di vittoria
+    if cW != 0:    
+        whoWins = ("lo user" if game.turn else "il computer") # Ha vinto il giocatore che ha eseguito l'ultima mossa
+        showinfo("Fine gioco", "Ha vinto " + whoWins + " con i checker " + ("X" if cW == 1 else "O") + "!")
+    # Caso di pareggio
+    if cT: showinfo("Fine gioco", "Pareggio.")
             
 # Main
-def main():
-    
+def main():    
     # Chi inizia?
+
     ROOT = tk.Tk()
     ROOT.withdraw()
     coinFlip = askyesno("Testa o croce", "Scegli testa?")
@@ -114,6 +152,9 @@ def main():
             break
     
     userBegins = (True if outcome == coinFlip else False) # Si comincia sempre con X. True = inizia lo user; False = inizia il computer  
+
+    # Inizia sempre il computer (DEBUG)
+    #userBegins = False
 
     # Nuovo gioco
     uttt = Game(userBegins)
