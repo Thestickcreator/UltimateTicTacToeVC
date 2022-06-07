@@ -8,29 +8,47 @@ from numpy import argmax
 from copy import deepcopy
 
 # Implementazione di una generalizzazione dell'algoritmo Minimax
-pruning = 5 # Vision per predict
+pruning = 4 # Vision per predict
 pruningAdvanced1 = pruning+1
 pruningAdvanced2 = pruning+2
 
 # Valuta il Game in generale e attribuisce un punteggio allo stato corrente
 def currentGeneralTableStatus(tables, currentTableIndexes, whoAmI):
-    appEveluation = 0
-    currentStatus = [[None, None, None], [None, None, None], [None, None, None]]
-    weights = [[1.4, 1, 1.4], [1, 1.75, 1], [1.4, 1, 1.4]]
+    appEvaluation = 0
+    currentStatus = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+    weights = [[0.2, 0.17, 0.2], [0.17, 0.22, 0.17], [0.2, 0.17, 0.2]]
     for row in range(3):
         for col in range(3):
-            appEveluation += howGoodIsThisTable(tables[row][col].table, whoAmI) * 1.5 * weights[row][col]
+            # Risultato attuale
+            if tables[row][col].table[0][0] == -1:
+                appEvaluation += (1 if tables[row][col].table[2][2] == whoAmI else -1) * weights[row][col]
+                currentStatus[row][col] = tables[row][col].table[2][2]
+                continue
+            if tables[row][col].table[0][0] == -2: continue
+            
+            appEvaluation += howGoodIsThisTable(tables[row][col].table, whoAmI) * 1.5 * weights[row][col]
             if (row, col) == currentTableIndexes:
-                appEveluation += howGoodIsThisTable(tables[row][col].table, whoAmI) * weights[row][col]
-            tmpEv = Table.checkWinTable(tables[row][col].table)
-            appEveluation -= tmpEv * weights[row][col]
-            currentStatus[row][col] = tmpEv
-    appEveluation -= Table.checkWinTable(currentStatus) * 5000 # Fine gioco, l'AI ha perso
-    appEveluation += howGoodIsThisTable(currentStatus, whoAmI)*150 # Valutazione overall del game.status dal punto di vista dell'AI
-    return appEveluation
+                appEvaluation += howGoodIsThisTable(tables[row][col].table, whoAmI) * weights[row][col]
+
+            # Risultati previsti
+            possibleWin = Table.checkWinTable(tables[row][col].table)
+            if possibleWin != 0:
+                possibleWin = (-1 if possibleWin == whoAmI else 1)           
+                appEvaluation -= possibleWin * weights[row][col]
+                otherPlayer = (1 if whoAmI == 2 else 2)
+                currentStatus[row][col] = (whoAmI if possibleWin == -1 else otherPlayer)
+
+    possibleWinGeneral = Table.checkWinTable(currentStatus)
+    if possibleWinGeneral != 0: possibleWinGeneral = (-1 if possibleWinGeneral == whoAmI else 1)        
+    appEvaluation -= possibleWinGeneral * 5000 # A quella specifica profondità, l'AI ha perso/vinto la partita
+    appEvaluation += howGoodIsThisTable(currentStatus, whoAmI)*150 # Valutazione overall del game.status dal punto di vista dell'AI
+    return appEvaluation
 
 # Metodi ausiliari
 def symmetricalTable(table, whoAmI):
+    if table[0][0] not in (0,1,2):
+        print("Bug Symm")
+        exit()
     tmp = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
     # 1 = Avversario (utente); -1 = IA
     for row in range(3):
@@ -107,17 +125,20 @@ def evaluateDoubles(table, not_full, full):
         (table[0][2] + table[1][1] == 2 * full and table[2][0] == -full) or
         (table[0][2] + table[2][0] == 2 * full and table[1][1] == -full) or
         (table[1][1] + table[2][0] == 2 * full and table[0][2] == -full)):
-        app += 9
+        app += 5
 
     return app
 
 def howGoodIsThisTable(tableInAnalysis, whoAmI):
+    if tableInAnalysis[0][0] not in (0,1,2):
+        print("Bug Table", tableInAnalysis[0][0])
+        exit()
     evaluation = 0
 
     # Punteggio sommato/sottratto in base a: sub-gioco vinto
     possibleWin = Table.checkWinTable(tableInAnalysis)
     if possibleWin != 0: possibleWin = (-1 if possibleWin == whoAmI else 1)
-    evaluation -= possibleWin * 12
+    evaluation -= possibleWin * 22
 
     # Preparazione della table in analisi per essere valutata in modo simmetrico
     tableInAnalysis = symmetricalTable(tableInAnalysis, whoAmI)
@@ -140,6 +161,7 @@ def howGoodIsThisTable(tableInAnalysis, whoAmI):
 def howGoodIsThisMove(tableInAnalysis, currentCheckerIndexes, whoAmI):
     # Simulazione di una mossa
     appTableInAnalysis = deepcopy(tableInAnalysis)
+
     appTableInAnalysis[currentCheckerIndexes[0]][currentCheckerIndexes[1]] = whoAmI # Esecuzione mossa
     # Valutazione mossa
     evaluation = 0
@@ -148,7 +170,7 @@ def howGoodIsThisMove(tableInAnalysis, currentCheckerIndexes, whoAmI):
     # Punteggio sommato/sottratto in base a: sub-gioco vinto
     possibleWin = Table.checkWinTable(appTableInAnalysis)
     if possibleWin != 0: possibleWin = (-1 if possibleWin == whoAmI else 1)
-    evaluation -= possibleWin * 15
+    evaluation -= possibleWin * 22
     
     # Preparazione della table in analisi per essere valutata in modo simmetrico
     appTableInAnalysis = symmetricalTable(appTableInAnalysis, whoAmI)
@@ -160,23 +182,18 @@ def howGoodIsThisMove(tableInAnalysis, currentCheckerIndexes, whoAmI):
     if compareSumsOfAllRowsColsDiagonalsWithValue(appTableInAnalysis, doubleForAI):
         evaluation += 1
 
-    # Punteggio sommato/sottratto in base a: vittoria sub-gioco
-    winForAI = -3
-    if compareSumsOfAllRowsColsDiagonalsWithValue(appTableInAnalysis, winForAI):
-        evaluation += 5
-
     # Punteggio sommato/sottratto in base a: "se l'avversario mettesse il suo checker lì, vincerebbe? E allora lo blocco"
     otherPlayer = (1 if whoAmI == 2 else 2)
     appTableInAnalysis[currentCheckerIndexes[0]][currentCheckerIndexes[1]] = otherPlayer
 
-    winForOpponent = 3;
+    winForOpponent = 3
     if compareSumsOfAllRowsColsDiagonalsWithValue(appTableInAnalysis, winForOpponent):
-        evaluation += 2
+        evaluation += 5
 
     return evaluation
 
 # Algoritmo MiniMax - ricorsivo
-def MiniMax(tables, currentTableIndexes, treeHeight, alpha, beta, turnInAnalysis, whoAmI):
+def MiniMax(tables, currentTableIndexes, treeHeight, to_maximize, to_minimize, turnInAnalysis, whoAmI):
     tmpPlay = None
 
     # Caso base
@@ -189,11 +206,10 @@ def MiniMax(tables, currentTableIndexes, treeHeight, alpha, beta, turnInAnalysis
     if currentTableIndexes == None: freeChoice = True
     else:
         freeChoice = False
-        if(Table.checkWinTable(tables[currentTableIndexes[0]][currentTableIndexes[1]].table) != 0 or # Table conclusa
-        Table.checkTieTable(tables[currentTableIndexes[0]][currentTableIndexes[1]].table)): # Table pareggiata
+        if not Table.checkPlayableTable(tables[currentTableIndexes[0]][currentTableIndexes[1]].table):
             freeChoice = True
 
-    # Maximize
+    # Maximize gain (per l'AI)
     if turnInAnalysis: # True = Maximize per l'utente; False = Minimize per l'AI
         maxEvaluationTillNow = -math.inf
         for row in range(3):
@@ -201,14 +217,14 @@ def MiniMax(tables, currentTableIndexes, treeHeight, alpha, beta, turnInAnalysis
                 appEvaluation = -math.inf
                 # freeChoice: analisi di tutte le Tables
                 if freeChoice:
-                    if Table.checkWinTable(tables[row][col].table) != 0: continue # La Table non deve essere conclusa
+                    if not Table.checkPlayableTable(tables[row][col].table): continue # La Table non deve essere conclusa
                     for rowTable in range(3):
                         for colTable in range(3):
     
                             if tables[row][col].table[rowTable][colTable] == 0: # Casella vuota
                                 # Simulazione mossa: se l'AI effettua questa mossa, avviene la massimizzazione?
                                 tables[row][col].table[rowTable][colTable] = whoAmI
-                                appEvaluation = MiniMax(tables, (rowTable, colTable), treeHeight-1, alpha, beta, False, whoAmI)["evaluation"]
+                                appEvaluation = MiniMax(tables, (rowTable, colTable), treeHeight-1, to_maximize, to_minimize, False, whoAmI)["evaluation"]
                                 tables[row][col].table[rowTable][colTable] = 0
                             
                                 # Valutazione mossa
@@ -216,15 +232,15 @@ def MiniMax(tables, currentTableIndexes, treeHeight, alpha, beta, turnInAnalysis
                                     maxEvaluationTillNow = appEvaluation
                                     tmpPlay = (row, col)
 
-                                alpha = max(alpha, appEvaluation)
+                                to_maximize = max(to_maximize, appEvaluation)
 
-                    if beta <= alpha: break
+                    if to_minimize <= to_maximize: break
                 # non è in freeChoice: analisi della Table cardinata
                 else:
                     if tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] == 0:
                         # Simulazione mossa
                         tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] = whoAmI
-                        appEvaluation = MiniMax(tables, (row, col), treeHeight-1, alpha, beta, False, whoAmI)
+                        appEvaluation = MiniMax(tables, (row, col), treeHeight-1, to_maximize, to_minimize, False, whoAmI)
                         tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] = 0
 
                         # Valutazione e salvataggio mossa
@@ -232,11 +248,11 @@ def MiniMax(tables, currentTableIndexes, treeHeight, alpha, beta, turnInAnalysis
                             maxEvaluationTillNow = appEvaluation["evaluation"]
                             tmpPlay = appEvaluation["calculatedMove"]
 
-                        alpha = max(alpha, appEvaluation["evaluation"])
-                    if beta <= alpha: break
+                        to_maximize = max(to_maximize, appEvaluation["evaluation"])
+                    if to_minimize <= to_maximize: break
 
         return {"evaluation": maxEvaluationTillNow, "calculatedMove": tmpPlay}
-    else: # Minimize
+    else: # Minimize gain (per l'avversario)
         otherPlayer = (1 if whoAmI == 2 else 2)
         minEvaluationTillNow = math.inf
         for row in range(3):            
@@ -244,13 +260,13 @@ def MiniMax(tables, currentTableIndexes, treeHeight, alpha, beta, turnInAnalysis
                 appEvaluation = math.inf
                 # freeChoice: analisi di tutte le Tables
                 if freeChoice:
-                    if Table.checkWinTable(tables[row][col].table) != 0: continue # La Table non deve essere conclusa
+                    if not Table.checkPlayableTable(tables[row][col].table) != 0: continue # La Table non deve essere conclusa
                     for rowTable in range(3):
                         for colTable in range(3):
                             if tables[row][col].table[rowTable][colTable] == 0:
                                 # Simulazione mossa: è meglio che l'avversario dell'AI effettui questa mossa? O ce ne sono altre che favoriscono ancora di più l'AI?
                                 tables[row][col].table[rowTable][colTable] = otherPlayer
-                                appEvaluation = MiniMax(tables, (rowTable, colTable), treeHeight-1, alpha, beta, True, whoAmI)["evaluation"]
+                                appEvaluation = MiniMax(tables, (rowTable, colTable), treeHeight-1, to_maximize, to_minimize, True, whoAmI)["evaluation"]
                                 tables[row][col].table[rowTable][colTable] = 0
 
                                 # Valutazione e salvataggio mossa
@@ -258,22 +274,22 @@ def MiniMax(tables, currentTableIndexes, treeHeight, alpha, beta, turnInAnalysis
                                     minEvaluationTillNow = appEvaluation
                                     tmpPlay = (rowTable, colTable)
 
-                                beta = min(beta, appEvaluation)
+                                to_minimize = min(to_minimize, appEvaluation)
 
-                    if beta <= alpha: break
+                    if to_minimize <= to_maximize: break
                 # non è in freeChoice: analisi della Table cardinata
                 else:
                     if tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] == 0:
                         tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] = otherPlayer
-                        appEvaluation = MiniMax(tables, (row, col), treeHeight-1, alpha, beta, True, whoAmI)
+                        appEvaluation = MiniMax(tables, (row, col), treeHeight-1, to_maximize, to_minimize, True, whoAmI)
                         tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] = 0
 
                         if appEvaluation["evaluation"] < minEvaluationTillNow:
                             minEvaluationTillNow = appEvaluation["evaluation"]
                             tmpPlay = appEvaluation["calculatedMove"]
 
-                        beta = min(beta, appEvaluation["evaluation"])
-                    if beta <= alpha: break
+                        to_minimize = min(to_minimize, appEvaluation["evaluation"])
+                    if to_minimize <= to_maximize: break
                        
         return {"evaluation": minEvaluationTillNow, "calculatedMove": tmpPlay}
 
@@ -288,14 +304,14 @@ def nextMove(game, freeChoice, currentTableIndexes, whoAmI, nMoves): # Codifica:
     count = 0
     for row in range(3):
         for col in range(3):
-            if not game.alreadyEnded(row, col) and not game.tie(row, col): count += 1
+            if Table.checkPlayableTable(game.getTable(row, col)): count += 1
 
     #showinfo("Quanti liberi:", str(count)) #DEBUG
     #print(nMoves)
     if freeChoice:
-        # freeChoice: Minimax per la scelta di quale table preferire
-        if nMoves < 10: current_pruning = pruning
-        elif 10 <= nMoves <= 15: current_pruning = pruningAdvanced1
+        # freeChoice: MiniMax per la scelta di quale table preferire
+        if nMoves < 17: current_pruning = pruning
+        elif 17 <= nMoves <= 25: current_pruning = pruningAdvanced1
         else: current_pruning = pruningAdvanced2
         savedMm = MiniMax(game.tables, None, min(current_pruning-1, count), -math.inf, math.inf, True, whoAmI)
         if savedMm["calculatedMove"] is not None: currentTableIndexes = savedMm["calculatedMove"]
@@ -325,17 +341,18 @@ def nextMove(game, freeChoice, currentTableIndexes, whoAmI, nMoves): # Codifica:
     # Applicazione di MiniMax e controllo predicts in profondità
     for row in range(3):
         for col in range(3):
-            #if Table.checkWinTable(currentTable) == 0:
+            #if not Table.checkPlayableTable(currentTable): continue
             if currentTable[row][col] == 0:
                 # Simulazione mossa
                 game.tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] = whoAmI
-                if nMoves < 20: current_pruning = pruning
-                elif 20 <= nMoves <= 30: current_pruning = pruningAdvanced1
+                if nMoves < 25: current_pruning = pruning
+                elif 25 <= nMoves <= 35: current_pruning = pruningAdvanced1
                 else: current_pruning = pruningAdvanced2
                 predict = MiniMax(game.tables, (row, col), min(current_pruning, count), -math.inf, math.inf, False, whoAmI)
+                # Ripristino mossa
                 game.tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] = 0
 
-                bestScore[row][col] += predict["evaluation"]
+                bestScore[row][col] += predict["evaluation"] # Update della valutazione
     
 
     # Restituisce l'effettiva mossa migliore, sulla base del punteggio maggiore

@@ -28,8 +28,9 @@ class Table:
     table = None
     def __init__(self):
         self.table = [[0] * 3 for _ in range(3)] # 0 = Casella vuota; 1 = X; 2 = O; -1 = Gioco concluso; -2 = Pareggio
-    def resetEndedTable(self):
+    def resetEndedTable(self, whoWon):
         self.table = [[-1] * 3 for _ in range(3)]
+        self.table[2][2] = whoWon
     def resetTiedTable(self):
         self.table = [[-2] * 3 for _ in range(3)]
     def checkWinTable(table): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
@@ -47,5 +48,9 @@ class Table:
         # No Wins
         return 0
     def checkTieTable(table): # Ritorna True o False
-        app = reshape(table.copy(), 9)
-        return 0 not in app and -1 not in app and -2 not in app
+        if table[0][0] == -2: return True
+        if table[0][0] == -1: return False
+        return (0 not in reshape(table.copy(), 9)) and Table.checkWinTable(table) == 0
+    def checkPlayableTable(table): # Table NON vinta né pareggiata
+        if table[0][0] == -1 or table[0][0] == -2: return False
+        return Table.checkWinTable(table) == 0 and (0 in reshape(table.copy(), 9))

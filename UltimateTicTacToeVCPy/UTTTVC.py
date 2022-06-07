@@ -17,7 +17,7 @@ def checkWinGame(game): # Ritorna 0 = No Win; 1 = X Wins; 2 = O Wins
             if checkPossibleWin > 0: game.updateWin(row, col, checkPossibleWin) # Vittoria registrata
             if game.status[row][col] > 0:
                 # Reset di quel sotto-gioco
-                game.tables[row][col].resetEndedTable()
+                game.tables[row][col].resetEndedTable(checkPossibleWin)
                 drawWinInWhatISeeWindow(game, row, col, game.status[row][col]) # Update grafico
 
     # Check vittoria sulla matrice di stato
