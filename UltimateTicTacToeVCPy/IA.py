@@ -211,6 +211,9 @@ def MiniMax(tables, currentTableIndexes, treeHeight, to_maximize, to_minimize, t
         if not Table.checkPlayableTable(tables[currentTableIndexes[0]][currentTableIndexes[1]].table):
             freeChoice = True
 
+    # Flag di appoggio
+    get_out = False
+    get_out2 = False
     # Maximize gain (per l'AI)
     if turnInAnalysis: # True = Maximize per l'utente; False = Minimize per l'AI
         maxEvaluationTillNow = -math.inf
@@ -236,7 +239,6 @@ def MiniMax(tables, currentTableIndexes, treeHeight, to_maximize, to_minimize, t
 
                                 to_maximize = max(to_maximize, appEvaluation)
 
-                    if to_minimize <= to_maximize: break
                 # non è in freeChoice: analisi della Table cardinata
                 else:
                     if tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] == 0:
@@ -251,7 +253,10 @@ def MiniMax(tables, currentTableIndexes, treeHeight, to_maximize, to_minimize, t
                             tmpPlay = appEvaluation["calculatedMove"]
 
                         to_maximize = max(to_maximize, appEvaluation["evaluation"])
-                    if to_minimize <= to_maximize: break
+                if to_minimize <= to_maximize:
+                    get_out = True
+                    break
+            if get_out: break
 
         return {"evaluation": maxEvaluationTillNow, "calculatedMove": tmpPlay}
     else: # Minimize gain (per l'avversario)
@@ -278,7 +283,6 @@ def MiniMax(tables, currentTableIndexes, treeHeight, to_maximize, to_minimize, t
 
                                 to_minimize = min(to_minimize, appEvaluation)
 
-                    if to_minimize <= to_maximize: break
                 # non è in freeChoice: analisi della Table cardinata
                 else:
                     if tables[currentTableIndexes[0]][currentTableIndexes[1]].table[row][col] == 0:
@@ -291,7 +295,10 @@ def MiniMax(tables, currentTableIndexes, treeHeight, to_maximize, to_minimize, t
                             tmpPlay = appEvaluation["calculatedMove"]
 
                         to_minimize = min(to_minimize, appEvaluation["evaluation"])
-                    if to_minimize <= to_maximize: break
+                if to_minimize <= to_maximize:
+                    get_out2 = True
+                    break
+            if get_out2: break
                        
         return {"evaluation": minEvaluationTillNow, "calculatedMove": tmpPlay}
 
