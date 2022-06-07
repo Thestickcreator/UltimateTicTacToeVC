@@ -25,9 +25,11 @@ def currentGeneralTableStatus(tables, currentTableIndexes, whoAmI):
                 currentStatus[row][col] = tables[row][col].table[2][2]
                 continue
             if tables[row][col].table[0][0] == -2: continue
-            
+
+            # Risultato in profondità
+            # Punteggio sommato/sottratto in base a: Ttato table in analisi
             appEvaluation += howGoodIsThisTable(tables[row][col].table, whoAmI) * 1.5 * weights[row][col]
-            if (row, col) == currentTableIndexes:
+            if (row, col) == currentTableIndexes: # Si ha un vantaggio se si sta giocando in questa Table
                 appEvaluation += howGoodIsThisTable(tables[row][col].table, whoAmI) * weights[row][col]
 
             # Risultati previsti
@@ -125,7 +127,7 @@ def evaluateDoubles(table, not_full, full):
         (table[0][2] + table[1][1] == 2 * full and table[2][0] == -full) or
         (table[0][2] + table[2][0] == 2 * full and table[1][1] == -full) or
         (table[1][1] + table[2][0] == 2 * full and table[0][2] == -full)):
-        app += 5
+        app += 9
 
     return app
 
@@ -138,7 +140,7 @@ def howGoodIsThisTable(tableInAnalysis, whoAmI):
     # Punteggio sommato/sottratto in base a: sub-gioco vinto
     possibleWin = Table.checkWinTable(tableInAnalysis)
     if possibleWin != 0: possibleWin = (-1 if possibleWin == whoAmI else 1)
-    evaluation -= possibleWin * 22
+    evaluation -= possibleWin * 15 # Peso diminuito
 
     # Preparazione della table in analisi per essere valutata in modo simmetrico
     tableInAnalysis = symmetricalTable(tableInAnalysis, whoAmI)
@@ -148,7 +150,7 @@ def howGoodIsThisTable(tableInAnalysis, whoAmI):
     # Punteggio sommato/sottratto in base a: checker * peso
     for row in range(3):
         for col in range(3):
-            evaluation -= tableInAnalysis[row][col] * weights[row][col];
+            evaluation -= tableInAnalysis[row][col] * weights[row][col]
 
     # Punteggio sommato/sottratto in base a: righe/colonne/diagonali riempite non interamente (full/not full)
     evaluation -= evaluateDoubles(tableInAnalysis, 2, -1)
@@ -260,7 +262,7 @@ def MiniMax(tables, currentTableIndexes, treeHeight, to_maximize, to_minimize, t
                 appEvaluation = math.inf
                 # freeChoice: analisi di tutte le Tables
                 if freeChoice:
-                    if not Table.checkPlayableTable(tables[row][col].table) != 0: continue # La Table non deve essere conclusa
+                    if not Table.checkPlayableTable(tables[row][col].table): continue # La Table non deve essere conclusa
                     for rowTable in range(3):
                         for colTable in range(3):
                             if tables[row][col].table[rowTable][colTable] == 0:
